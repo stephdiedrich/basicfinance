@@ -110,6 +110,14 @@ export interface CashFlowLineItem {
   groupId?: string; // Reference to CashFlowGroup id
   categoryId?: string; // Reference to CashFlowCategory id
   order: number; // Order within the group or overall
+  notes?: string; // Optional notes for the line item
+}
+
+export interface Preferences {
+  showCategoryNotesInCashFlow?: boolean;
+  currency?: string;
+  dateFormat?: string;
+  theme?: 'auto' | 'light' | 'dark';
 }
 
 export interface FinancialData {
@@ -124,5 +132,6 @@ export interface FinancialData {
   cashFlowLineItems: CashFlowLineItem[];
   cashFlowGroups: CashFlowGroup[];
   cashFlowCategories: CashFlowCategory[];
+  preferences?: Preferences;
 }
 

@@ -1,4 +1,4 @@
-import { FinancialData, Asset, Liability, Transaction, AssetClass, AssetView, LiabilityClass, LiabilityView, BudgetItem, CashFlowLineItem, CashFlowGroup, CashFlowCategory } from '@/types';
+import { FinancialData, Asset, Liability, Transaction, AssetClass, AssetView, LiabilityClass, LiabilityView, BudgetItem, CashFlowLineItem, CashFlowGroup, CashFlowCategory, Preferences } from '@/types';
 
 const STORAGE_KEY = 'financial-data';
 
@@ -71,6 +71,9 @@ const defaultData: FinancialData = {
   cashFlowLineItems: defaultCashFlowLineItems,
   cashFlowGroups: defaultCashFlowGroups,
   cashFlowCategories: defaultCashFlowCategories,
+  preferences: {
+    showCategoryNotesInCashFlow: false,
+  },
 };
 
 export function getFinancialData(): FinancialData {
@@ -91,6 +94,10 @@ export function getFinancialData(): FinancialData {
         cashFlowCategories: data.cashFlowCategories || defaultCashFlowCategories,
         cashFlowLineItems: data.cashFlowLineItems || defaultCashFlowLineItems,
         budgets: data.budgets || [],
+        preferences: {
+          ...defaultData.preferences,
+          ...(data.preferences || {}),
+        },
       };
     }
   } catch (error) {
@@ -739,6 +746,21 @@ export function reorderCashFlowCategories(categoryIds: string[]): void {
     }
   });
   data.cashFlowCategories = reordered;
+  saveFinancialData(data);
+}
+
+// Preferences functions
+export function getPreferences(): Preferences {
+  const data = getFinancialData();
+  return data.preferences || defaultData.preferences || { showCategoryNotesInCashFlow: false };
+}
+
+export function updatePreferences(updates: Partial<Preferences>): void {
+  const data = getFinancialData();
+  if (!data.preferences) {
+    data.preferences = { ...defaultData.preferences };
+  }
+  data.preferences = { ...data.preferences, ...updates };
   saveFinancialData(data);
 }
 

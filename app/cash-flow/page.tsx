@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getFinancialData, getBudgets, getCashFlowLineItems, getCashFlowGroups, getCashFlowCategories, addBudget, updateBudget } from '@/lib/storage';
+import { getFinancialData, getBudgets, getCashFlowLineItems, getCashFlowGroups, getCashFlowCategories, addBudget, updateBudget, getPreferences } from '@/lib/storage';
 import { Transaction, BudgetItem, CashFlowLineItem, CashFlowGroup, CashFlowCategory } from '@/types';
 
 type ViewMode = 'month' | 'year';
@@ -15,6 +15,7 @@ interface ExpenseItem {
   percent: number;
   lineItemId: string;
   categoryName?: string;
+  notes?: string;
 }
 
 interface ExpenseGroup {
@@ -38,6 +39,7 @@ export default function CashFlowPage() {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [editingBudget, setEditingBudget] = useState<{ lineItemId: string; categoryName: string } | null>(null);
   const [editingBudgetValue, setEditingBudgetValue] = useState<string>('');
+  const [showCategoryNotesInCashFlow, setShowCategoryNotesInCashFlow] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -51,6 +53,8 @@ export default function CashFlowPage() {
     setLineItems(getCashFlowLineItems());
     setGroups(getCashFlowGroups());
     setCategories(getCashFlowCategories());
+    const prefs = getPreferences();
+    setShowCategoryNotesInCashFlow(prefs.showCategoryNotesInCashFlow || false);
     if (viewMode === 'month') {
       setBudgets(getBudgets(selectedYear, selectedMonth));
     } else {
@@ -104,10 +108,14 @@ export default function CashFlowPage() {
       return a.order - b.order;
     });
 
-  // Calculate income amounts for each item
+  // Calculate income amounts for each item (actual)
   const incomeItemsMap = new Map<string, number>();
+  const incomeBudgetedMap = new Map<string, number>();
   incomeLineItems.forEach(item => {
     const category = item.categoryId ? categories.find(c => c.id === item.categoryId) : null;
+    const categoryName = category?.name || item.name;
+    
+    // Calculate actual income from transactions
     const matched = periodTransactions.filter(t => {
       if (t.type !== 'income') return false;
       // Match by category name if set
@@ -118,9 +126,29 @@ export default function CashFlowPage() {
     });
     const total = matched.reduce((sum, t) => sum + t.amount, 0);
     incomeItemsMap.set(item.id, total);
+    
+    // Calculate expected (budgeted) income
+    let budgeted = 0;
+    if (viewMode === 'month') {
+      const budget = budgets.find(b => 
+        (b.category === categoryName || b.subCategory === categoryName) &&
+        b.year === selectedYear &&
+        b.month === selectedMonth
+      );
+      budgeted = budget?.budgeted || 0;
+    } else {
+      // For annual view, sum all months
+      const yearBudgets = budgets.filter(b => 
+        (b.category === categoryName || b.subCategory === categoryName) &&
+        b.year === selectedYear
+      );
+      budgeted = yearBudgets.reduce((sum, b) => sum + b.budgeted, 0);
+    }
+    incomeBudgetedMap.set(item.id, budgeted);
   });
 
   const totalIncome = Array.from(incomeItemsMap.values()).reduce((sum, amount) => sum + amount, 0);
+  const totalIncomeExpected = Array.from(incomeBudgetedMap.values()).reduce((sum, amount) => sum + amount, 0);
 
   // Get expense line items and organize by groups
   const expenseLineItems = lineItems
@@ -197,6 +225,7 @@ export default function CashFlowPage() {
       percent,
       lineItemId: lineItem.id,
       categoryName: category?.name,
+      notes: lineItem.notes,
     });
 
     expenseGroup.totalBudgeted += budgeted;
@@ -214,6 +243,13 @@ export default function CashFlowPage() {
   const totalExpensesBudgeted = expenseGroups.reduce((sum, g) => sum + g.totalBudgeted, 0);
   const totalExpensesSpent = expenseGroups.reduce((sum, g) => sum + g.totalSpent, 0);
   const netIncome = totalIncome - totalExpensesSpent;
+  
+  // Calculate percentages for totals
+  const totalIncomePercent = totalIncomeExpected > 0 ? Math.round((totalIncome / totalIncomeExpected) * 100) : 0;
+  const totalExpensesPercent = totalExpensesBudgeted > 0 ? Math.round((totalExpensesSpent / totalExpensesBudgeted) * 100) : 0;
+  
+  // Calculate savings rate
+  const savingsRate = totalIncome > 0 ? Math.round((netIncome / totalIncome) * 100) : 0;
 
   // Handle budget editing
   const handleBudgetEdit = (item: ExpenseItem) => {
@@ -412,12 +448,21 @@ export default function CashFlowPage() {
         <div className="p-8">
           {/* Income Section */}
           <div className="mb-8">
-            <h2 className="text-2xl font-medium mb-6 text-black">Income</h2>
+            <div className="flex items-center mb-6">
+              <h2 className="text-2xl font-medium text-black flex-1">Income</h2>
+              <div className="flex text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '280px', justifyContent: 'flex-end', gap: '24px' }}>
+                <span className="text-right" style={{ width: '96px', display: 'block', whiteSpace: 'nowrap' }}>Expected</span>
+                <span className="text-right" style={{ width: '96px', display: 'block', whiteSpace: 'nowrap' }}>Actual</span>
+                <span className="text-right" style={{ width: '64px', display: 'block', whiteSpace: 'nowrap' }}>%</span>
+              </div>
+            </div>
             <div className="space-y-1">
               {/* Income items grouped by groups */}
               {(groups || []).filter(group => incomeLineItems.some(item => item.groupId === group.id)).map((group, groupIndex, filteredGroups) => {
                 const groupItems = incomeLineItems.filter(item => item.groupId === group.id);
-                const groupTotal = groupItems.reduce((sum, item) => sum + (incomeItemsMap.get(item.id) || 0), 0);
+                const groupActual = groupItems.reduce((sum, item) => sum + (incomeItemsMap.get(item.id) || 0), 0);
+                const groupExpected = groupItems.reduce((sum, item) => sum + (incomeBudgetedMap.get(item.id) || 0), 0);
+                const groupPercent = groupExpected > 0 ? Math.round((groupActual / groupExpected) * 100) : 0;
                 const isCollapsed = collapsedGroups.has(group.id);
                 const isLastGroup = groupIndex === filteredGroups.length - 1 && incomeLineItems.filter(item => !item.groupId).length === 0;
                 
@@ -425,10 +470,10 @@ export default function CashFlowPage() {
                   <div key={group.id} className={isLastGroup ? '' : 'border-b border-gray-200'}>
                     {/* Group header with subtotal */}
                     <div 
-                      className="flex justify-between items-center py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                      className="flex items-center py-3 cursor-pointer hover:bg-gray-50 transition-colors"
                       onClick={() => toggleGroup(group.id)}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-1">
                         <svg 
                           width="16" 
                           height="16" 
@@ -440,17 +485,74 @@ export default function CashFlowPage() {
                         </svg>
                         <span className="font-medium text-black">{group.name}</span>
                       </div>
-                      <span className="font-medium text-black">{formatCurrency(groupTotal)}</span>
+                      <div className="flex" style={{ width: '280px', justifyContent: 'flex-end', gap: '24px' }}>
+                        <span className="text-right font-medium text-black" style={{ width: '96px', display: 'block' }}>
+                          {formatCurrency(groupExpected)}
+                        </span>
+                        <span className="text-right font-medium text-black" style={{ width: '96px', display: 'block' }}>
+                          {formatCurrency(groupActual)}
+                        </span>
+                        <span className="text-right font-medium text-black" style={{ width: '64px', display: 'block' }}>
+                          {groupPercent}%
+                        </span>
+                      </div>
                     </div>
                     {/* Line items (indented) */}
                     {!isCollapsed && (
                       <div className="space-y-1 pb-2">
                         {groupItems.map((item) => {
-                          const amount = incomeItemsMap.get(item.id) || 0;
+                          const actual = incomeItemsMap.get(item.id) || 0;
+                          const expected = incomeBudgetedMap.get(item.id) || 0;
+                          const percent = expected > 0 ? Math.round((actual / expected) * 100) : 0;
+                          const category = item.categoryId ? categories.find(c => c.id === item.categoryId) : null;
+                          const categoryName = category?.name || item.name;
+                          const isEditing = editingBudget?.lineItemId === item.id;
+                          
                           return (
-                            <div key={item.id} className="flex justify-between items-center py-2 pl-8">
-                              <span className="text-gray-700 font-light">{item.name}</span>
-                              <span className="font-medium text-black">{formatCurrency(amount)}</span>
+                            <div key={item.id} className="flex items-center py-2 pl-8">
+                              <span className="text-gray-700 font-light flex-1">
+                                {item.name}
+                                {showCategoryNotesInCashFlow && item.notes && (
+                                  <span className="text-sm font-light text-gray-500 ml-2">| {item.notes}</span>
+                                )}
+                              </span>
+                              <div className="flex" style={{ width: '280px', justifyContent: 'flex-end', gap: '24px' }}>
+                                {isEditing ? (
+                                  <input
+                                    type="text"
+                                    value={editingBudgetValue}
+                                    onChange={(e) => setEditingBudgetValue(e.target.value)}
+                                    onBlur={() => handleBudgetSave({ lineItemId: item.id, categoryName, budgeted: expected, spent: actual, percent, category: categoryName } as ExpenseItem)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        handleBudgetSave({ lineItemId: item.id, categoryName, budgeted: expected, spent: actual, percent, category: categoryName } as ExpenseItem);
+                                      } else if (e.key === 'Escape') {
+                                        handleBudgetCancel();
+                                      }
+                                    }}
+                                    className="text-right font-light text-gray-700 border-b-2 border-[#3f3b39] focus:outline-none bg-transparent px-1"
+                                    style={{ width: '96px' }}
+                                    autoFocus
+                                  />
+                                ) : (
+                                  <span 
+                                    className="text-right font-light text-gray-700 cursor-pointer hover:text-black transition-colors"
+                                    style={{ width: '96px', display: 'block' }}
+                                    onClick={() => {
+                                      setEditingBudget({ lineItemId: item.id, categoryName });
+                                      setEditingBudgetValue(expected.toString());
+                                    }}
+                                  >
+                                    {formatCurrency(expected)}
+                                  </span>
+                                )}
+                                <span className="text-right font-light text-black" style={{ width: '96px', display: 'block' }}>
+                                  {formatCurrency(actual)}
+                                </span>
+                                <span className="text-right font-light text-black" style={{ width: '64px', display: 'block' }}>
+                                  {percent}%
+                                </span>
+                              </div>
                             </div>
                           );
                         })}
@@ -463,11 +565,58 @@ export default function CashFlowPage() {
               {incomeLineItems.filter(item => !item.groupId).length > 0 && (
                 <div className="space-y-1 pb-2">
                   {incomeLineItems.filter(item => !item.groupId).map((item) => {
-                    const amount = incomeItemsMap.get(item.id) || 0;
+                    const actual = incomeItemsMap.get(item.id) || 0;
+                    const expected = incomeBudgetedMap.get(item.id) || 0;
+                    const percent = expected > 0 ? Math.round((actual / expected) * 100) : 0;
+                    const category = item.categoryId ? categories.find(c => c.id === item.categoryId) : null;
+                    const categoryName = category?.name || item.name;
+                    const isEditing = editingBudget?.lineItemId === item.id;
+                    
                     return (
-                      <div key={item.id} className="flex justify-between items-center py-2">
-                        <span className="text-gray-700 font-light">{item.name}</span>
-                        <span className="font-medium text-black">{formatCurrency(amount)}</span>
+                      <div key={item.id} className="flex items-center py-2">
+                        <span className="text-gray-700 font-light flex-1">
+                          {item.name}
+                          {showCategoryNotesInCashFlow && item.notes && (
+                            <span className="text-sm font-light text-gray-500 ml-2">| {item.notes}</span>
+                          )}
+                        </span>
+                        <div className="flex" style={{ width: '280px', justifyContent: 'flex-end', gap: '24px' }}>
+                          {isEditing ? (
+                            <input
+                              type="text"
+                              value={editingBudgetValue}
+                              onChange={(e) => setEditingBudgetValue(e.target.value)}
+                              onBlur={() => handleBudgetSave({ lineItemId: item.id, categoryName, budgeted: expected, spent: actual, percent, category: categoryName } as ExpenseItem)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleBudgetSave({ lineItemId: item.id, categoryName, budgeted: expected, spent: actual, percent, category: categoryName } as ExpenseItem);
+                                } else if (e.key === 'Escape') {
+                                  handleBudgetCancel();
+                                }
+                              }}
+                              className="text-right font-light text-gray-700 border-b-2 border-[#3f3b39] focus:outline-none bg-transparent px-1"
+                              style={{ width: '96px' }}
+                              autoFocus
+                            />
+                          ) : (
+                            <span 
+                              className="text-right font-light text-gray-700 cursor-pointer hover:text-black transition-colors"
+                              style={{ width: '96px', display: 'block' }}
+                              onClick={() => {
+                                setEditingBudget({ lineItemId: item.id, categoryName });
+                                setEditingBudgetValue(expected.toString());
+                              }}
+                            >
+                              {formatCurrency(expected)}
+                            </span>
+                          )}
+                          <span className="text-right font-light text-black" style={{ width: '96px', display: 'block' }}>
+                            {formatCurrency(actual)}
+                          </span>
+                          <span className="text-right font-light text-black" style={{ width: '64px', display: 'block' }}>
+                            {percent}%
+                          </span>
+                        </div>
                       </div>
                     );
                   })}
@@ -476,9 +625,19 @@ export default function CashFlowPage() {
               {incomeLineItems.length === 0 && (
                 <div className="py-2 text-gray-500 text-sm">No income line items configured. Add them in Settings.</div>
               )}
-              <div className="flex justify-between items-center py-3 border-t-2 border-gray-300 mt-2">
-                <span className="font-medium text-black">Total Income</span>
-                <span className="font-medium text-black">{formatCurrency(totalIncome)}</span>
+              <div className="flex items-center py-3 border-t-2 border-gray-300 mt-2">
+                <span className="font-bold text-black flex-1">Total Income</span>
+                <div className="flex" style={{ width: '280px', justifyContent: 'flex-end', gap: '24px' }}>
+                  <span className="text-right font-bold text-black" style={{ width: '96px', display: 'block' }}>
+                    {formatCurrency(totalIncomeExpected)}
+                  </span>
+                  <span className="text-right font-bold text-black" style={{ width: '96px', display: 'block' }}>
+                    {formatCurrency(totalIncome)}
+                  </span>
+                  <span className="text-right font-bold text-black" style={{ width: '64px', display: 'block' }}>
+                    {totalIncomePercent}%
+                  </span>
+                </div>
               </div>
             </div>
         </div>
@@ -550,7 +709,12 @@ export default function CashFlowPage() {
                               item.percent > 100 ? 'bg-orange-50 rounded-lg px-3' : ''
                             }`}
                           >
-                            <span className="text-gray-700 font-light flex-1">{item.name}</span>
+                            <span className="text-gray-700 font-light flex-1">
+                              {item.name}
+                              {showCategoryNotesInCashFlow && item.notes && (
+                                <span className="text-sm font-light text-gray-500 ml-2">| {item.notes}</span>
+                              )}
+                            </span>
                             <div className="flex" style={{ width: '280px', justifyContent: 'flex-end', gap: '24px' }}>
                               {editingBudget?.lineItemId === item.lineItemId ? (
                                 <input
@@ -582,7 +746,7 @@ export default function CashFlowPage() {
                               <span className="text-right font-light text-gray-700" style={{ width: '96px', display: 'block' }}>
                                 {formatCurrency(item.spent)}
                               </span>
-                              <span className={`text-right font-medium ${
+                              <span className={`text-right font-light ${
                                 item.percent > 100 ? 'text-orange-600' : 'text-gray-700'
                               }`} style={{ width: '64px', display: 'block' }}>
                                 {item.percent}%
@@ -626,7 +790,12 @@ export default function CashFlowPage() {
                             item.percent > 100 ? 'bg-orange-50 rounded-lg px-3' : ''
                           }`}
                         >
-                          <span className="text-gray-700 font-light flex-1">{item.name}</span>
+                          <span className="text-gray-700 font-light flex-1">
+                            {item.name}
+                            {showCategoryNotesInCashFlow && item.notes && (
+                              <span className="text-sm font-light text-gray-500 ml-2">| {item.notes}</span>
+                            )}
+                          </span>
                           <div className="flex" style={{ width: '280px', justifyContent: 'flex-end', gap: '24px' }}>
                             {editingBudget?.lineItemId === item.lineItemId ? (
                                 <input
@@ -674,15 +843,19 @@ export default function CashFlowPage() {
                 <div className="py-2 text-gray-500 text-sm">No expense line items configured. Add them in Settings.</div>
               )}
               <div className="flex items-center py-3 border-t-2 border-gray-300 mt-2">
-                <span className="font-medium text-black flex-1">Total Expenses</span>
+                <span className="font-bold text-black flex-1">Total Expenses</span>
                 <div className="flex" style={{ width: '280px', justifyContent: 'flex-end', gap: '24px' }}>
-                  <span className="text-right font-medium text-black" style={{ width: '96px', display: 'block' }}>
+                  <span className="text-right font-bold text-black" style={{ width: '96px', display: 'block' }}>
                     {formatCurrency(totalExpensesBudgeted)}
                   </span>
-                  <span className="text-right font-medium text-black" style={{ width: '96px', display: 'block' }}>
+                  <span className="text-right font-bold text-black" style={{ width: '96px', display: 'block' }}>
                     {formatCurrency(totalExpensesSpent)}
                   </span>
-                  <span style={{ width: '64px', display: 'block' }}></span>
+                  <span className={`text-right font-bold ${
+                    totalExpensesPercent > 100 ? 'text-orange-600' : 'text-black'
+                  }`} style={{ width: '64px', display: 'block' }}>
+                    {totalExpensesPercent}%
+                  </span>
                 </div>
               </div>
         </div>
@@ -690,13 +863,20 @@ export default function CashFlowPage() {
 
           {/* Net Income */}
           <div className="border-t-2 border-gray-300 pt-4">
-            <div className="flex justify-between items-center">
-              <span className="text-lg font-medium text-black">Net Income</span>
-              <span className={`text-lg font-medium ${
-                netIncome >= 0 ? 'text-emerald-600' : 'text-red-600'
-              }`}>
-                {formatCurrency(netIncome)}
-              </span>
+            <div className="flex items-center">
+              <span className="text-lg font-bold text-black flex-1">Net Income</span>
+              <div className="flex" style={{ width: '280px', justifyContent: 'flex-end', gap: '24px' }}>
+                <span style={{ width: '96px', display: 'block' }}></span>
+                <span className="text-lg font-bold text-black text-right" style={{ width: '96px', display: 'block' }}>
+                  {formatCurrency(netIncome)}
+                </span>
+                <div className="text-right" style={{ width: '64px', display: 'block' }}>
+                  <div className={`text-sm font-light text-black`}>
+                    {savingsRate >= 0 ? '+' : ''}{savingsRate}%
+                  </div>
+                  <div className="text-xs font-light text-gray-500">savings rate</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

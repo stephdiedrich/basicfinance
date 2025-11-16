@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { 
   getCashFlowLineItems, addCashFlowLineItem, updateCashFlowLineItem, deleteCashFlowLineItem, reorderCashFlowLineItems,
   getCashFlowGroups, addCashFlowGroup, updateCashFlowGroup, deleteCashFlowGroup, reorderCashFlowGroups,
-  getCashFlowCategories, addCashFlowCategory, updateCashFlowCategory, deleteCashFlowCategory, reorderCashFlowCategories
+  getCashFlowCategories, addCashFlowCategory, updateCashFlowCategory, deleteCashFlowCategory, reorderCashFlowCategories,
+  getPreferences, updatePreferences
 } from '@/lib/storage';
 import { CashFlowLineItem, CashFlowGroup, CashFlowCategory } from '@/types';
 
@@ -33,15 +34,16 @@ export default function SettingsPage() {
     groupId: '',
     newGroupName: '',
     categoryId: '',
+    notes: '',
   });
+  const [showCategoryNotesInCashFlow, setShowCategoryNotesInCashFlow] = useState(false);
   const [groupFormData, setGroupFormData] = useState({ name: '' });
   const [categoryFormData, setCategoryFormData] = useState({ name: '' });
 
-  useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  const loadPreferences = () => {
+    const prefs = getPreferences();
+    setShowCategoryNotesInCashFlow(prefs.showCategoryNotesInCashFlow || false);
+  };
 
   const loadData = () => {
     try {
@@ -75,6 +77,13 @@ export default function SettingsPage() {
     }
   };
 
+  useEffect(() => {
+    loadData();
+    loadPreferences();
+    const interval = setInterval(loadData, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -91,6 +100,7 @@ export default function SettingsPage() {
         type: formData.type,
         groupId: finalGroupId,
         categoryId: formData.categoryId || undefined,
+        notes: formData.notes || undefined,
       });
     } else {
       const maxOrder = lineItems
@@ -101,6 +111,7 @@ export default function SettingsPage() {
         type: formData.type,
         groupId: finalGroupId,
         categoryId: formData.categoryId || undefined,
+        notes: formData.notes || undefined,
         order: maxOrder + 1,
       });
     }
@@ -143,6 +154,7 @@ export default function SettingsPage() {
       groupId: item.groupId || '',
       newGroupName: '',
       categoryId: item.categoryId || '',
+      notes: item.notes || '',
     });
     setIsFormOpen(true);
   };
@@ -167,7 +179,12 @@ export default function SettingsPage() {
   };
 
   const handleDeleteGroup = (id: string) => {
-    if (confirm('Are you sure you want to delete this group? Line items using this group will be ungrouped.')) {
+    const itemsInGroup = lineItems.filter(item => item.groupId === id);
+    if (itemsInGroup.length > 0) {
+      alert(`Cannot delete group. Please remove all ${itemsInGroup.length} line item(s) from this group first.`);
+      return;
+    }
+    if (confirm('Are you sure you want to delete this group?')) {
       deleteCashFlowGroup(id);
       loadData();
     }
@@ -181,7 +198,7 @@ export default function SettingsPage() {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', type: 'income', groupId: '', newGroupName: '', categoryId: '' });
+    setFormData({ name: '', type: 'income', groupId: '', newGroupName: '', categoryId: '', notes: '' });
     setIsCreatingNewGroup(false);
     setIsFormOpen(false);
     setEditingItem(null);
@@ -217,6 +234,10 @@ export default function SettingsPage() {
   // Drag and drop for groups
   const handleGroupDragStart = (index: number) => {
     setDraggedGroupIndex(index);
+  };
+
+  const handleGroupDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
   };
 
   const handleGroupDrop = (e: React.DragEvent, dropIndex: number) => {
@@ -345,7 +366,7 @@ export default function SettingsPage() {
             </button>
             <button
               onClick={() => {
-                setFormData({ name: '', type: 'income', groupId: '', newGroupName: '', categoryId: '' });
+                setFormData({ name: '', type: 'income', groupId: '', newGroupName: '', categoryId: '', notes: '' });
                 setEditingItem(null);
                 setIsFormOpen(true);
               }}
@@ -358,41 +379,51 @@ export default function SettingsPage() {
         <div className="space-y-6">
           {(groups || []).filter(group => incomeItems.some(item => item.groupId === group.id)).map((group) => {
             const groupItems = incomeItems.filter(item => item.groupId === group.id);
+            const actualGroupIndex = groups.findIndex(g => g.id === group.id);
             return (
               <div key={group.id} className="border-b border-gray-200 pb-6 last:border-b-0 last:pb-0">
-                {editingGroupNameId === group.id ? (
-                  <input
-                    type="text"
-                    value={editingGroupNameValue}
-                    onChange={(e) => setEditingGroupNameValue(e.target.value)}
-                    onBlur={() => {
-                      if (editingGroupNameValue.trim() && editingGroupNameValue !== group.name) {
-                        updateCashFlowGroup(group.id, { name: editingGroupNameValue.trim() });
-                        loadData();
-                      }
-                      setEditingGroupNameId(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.currentTarget.blur();
-                      } else if (e.key === 'Escape') {
+                <div
+                  draggable
+                  onDragStart={() => handleGroupDragStart(actualGroupIndex)}
+                  onDragOver={handleGroupDragOver}
+                  onDrop={(e) => handleGroupDrop(e, actualGroupIndex)}
+                  onDragEnd={handleGroupDragEnd}
+                  className={`flex items-center gap-2 mb-4 ${draggedGroupIndex === actualGroupIndex ? 'opacity-50' : ''}`}
+                >
+                  {editingGroupNameId === group.id ? (
+                    <input
+                      type="text"
+                      value={editingGroupNameValue}
+                      onChange={(e) => setEditingGroupNameValue(e.target.value)}
+                      onBlur={() => {
+                        if (editingGroupNameValue.trim() && editingGroupNameValue !== group.name) {
+                          updateCashFlowGroup(group.id, { name: editingGroupNameValue.trim() });
+                          loadData();
+                        }
                         setEditingGroupNameId(null);
-                      }
-                    }}
-                    className="text-lg font-medium text-black mb-4 bg-transparent border-b-2 border-[#3f3b39] focus:outline-none px-1"
-                    autoFocus
-                  />
-                ) : (
-                  <h3 
-                    className="text-lg font-medium text-black mb-4 cursor-pointer hover:text-gray-700 transition-colors"
-                    onClick={() => {
-                      setEditingGroupNameId(group.id);
-                      setEditingGroupNameValue(group.name);
-                    }}
-                  >
-                    {group.name}
-                  </h3>
-                )}
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.currentTarget.blur();
+                        } else if (e.key === 'Escape') {
+                          setEditingGroupNameId(null);
+                        }
+                      }}
+                      className="text-lg font-medium text-black bg-transparent border-b-2 border-[#3f3b39] focus:outline-none px-1 flex-1"
+                      autoFocus
+                    />
+                  ) : (
+                    <h3 
+                      className="text-lg font-medium text-black cursor-pointer hover:text-gray-700 transition-colors flex-1"
+                      onClick={() => {
+                        setEditingGroupNameId(group.id);
+                        setEditingGroupNameValue(group.name);
+                      }}
+                    >
+                      {group.name}
+                    </h3>
+                  )}
+                </div>
                 <div className="space-y-2">
                   {groupItems.map((item) => {
                     const actualIndex = lineItems.findIndex(i => i.id === item.id);
@@ -408,15 +439,24 @@ export default function SettingsPage() {
                           draggedIndex === actualIndex ? 'opacity-50' : ''
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-1 text-gray-400 cursor-grab active:cursor-grabbing">
-                            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                          </div>
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
                           <span className="font-medium text-black">{item.name}</span>
+                          {item.notes && (
+                            <span className="text-sm font-light text-gray-500">| {item.notes}</span>
+                          )}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="flex items-center gap-0.5 text-gray-400 cursor-move hover:text-gray-600"
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                            }}
+                          >
+                            <div className="w-1 h-1 bg-current rounded-full"></div>
+                            <div className="w-1 h-1 bg-current rounded-full"></div>
+                            <div className="w-1 h-1 bg-current rounded-full"></div>
+                            <div className="w-1 h-1 bg-current rounded-full"></div>
+                          </div>
                           <button
                             onClick={() => handleEdit(item)}
                             className="text-gray-400 hover:text-black p-1.5 rounded-lg hover:bg-gray-200 cursor-pointer"
@@ -424,15 +464,6 @@ export default function SettingsPage() {
                           >
                             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                               <path d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354L12.427 2.487zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064L11.189 6.25z" fill="currentColor"/>
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 cursor-pointer"
-                            title="Delete"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M5 5L15 15M15 5L5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                             </svg>
                           </button>
                         </div>
@@ -459,15 +490,24 @@ export default function SettingsPage() {
                       draggedIndex === actualIndex ? 'opacity-50' : ''
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1 text-gray-400 cursor-grab active:cursor-grabbing">
-                        <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                        <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                        <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                      </div>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
                       <span className="font-medium text-black">{item.name}</span>
+                      {item.notes && (
+                        <span className="text-sm font-light text-gray-500">| {item.notes}</span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                      <div 
+                        className="flex items-center gap-0.5 text-gray-400 cursor-move hover:text-gray-600"
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                        }}
+                      >
+                        <div className="w-1 h-1 bg-current rounded-full"></div>
+                        <div className="w-1 h-1 bg-current rounded-full"></div>
+                        <div className="w-1 h-1 bg-current rounded-full"></div>
+                        <div className="w-1 h-1 bg-current rounded-full"></div>
+                      </div>
                       <button
                         onClick={() => handleEdit(item)}
                         className="text-gray-400 hover:text-black p-1.5 rounded-lg hover:bg-gray-200 cursor-pointer"
@@ -475,15 +515,6 @@ export default function SettingsPage() {
                       >
                         <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354L12.427 2.487zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064L11.189 6.25z" fill="currentColor"/>
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 cursor-pointer"
-                        title="Delete"
-                      >
-                        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M5 5L15 15M15 5L5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                         </svg>
                       </button>
                     </div>
@@ -515,7 +546,7 @@ export default function SettingsPage() {
             </button>
             <button
               onClick={() => {
-                setFormData({ name: '', type: 'expense', groupId: '', newGroupName: '', categoryId: '' });
+                setFormData({ name: '', type: 'expense', groupId: '', newGroupName: '', categoryId: '', notes: '' });
                 setEditingItem(null);
                 setIsFormOpen(true);
               }}
@@ -529,41 +560,51 @@ export default function SettingsPage() {
           {(groups || []).map((group) => {
             const groupItems = expenseItems.filter(item => item.groupId === group.id);
             if (groupItems.length === 0) return null;
+            const actualGroupIndex = groups.findIndex(g => g.id === group.id);
             return (
               <div key={group.id} className="border-b border-gray-200 pb-6 last:border-b-0 last:pb-0">
-                {editingGroupNameId === group.id ? (
-                  <input
-                    type="text"
-                    value={editingGroupNameValue}
-                    onChange={(e) => setEditingGroupNameValue(e.target.value)}
-                    onBlur={() => {
-                      if (editingGroupNameValue.trim() && editingGroupNameValue !== group.name) {
-                        updateCashFlowGroup(group.id, { name: editingGroupNameValue.trim() });
-                        loadData();
-                      }
-                      setEditingGroupNameId(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.currentTarget.blur();
-                      } else if (e.key === 'Escape') {
+                <div
+                  draggable
+                  onDragStart={() => handleGroupDragStart(actualGroupIndex)}
+                  onDragOver={handleGroupDragOver}
+                  onDrop={(e) => handleGroupDrop(e, actualGroupIndex)}
+                  onDragEnd={handleGroupDragEnd}
+                  className={`flex items-center gap-2 mb-4 ${draggedGroupIndex === actualGroupIndex ? 'opacity-50' : ''}`}
+                >
+                  {editingGroupNameId === group.id ? (
+                    <input
+                      type="text"
+                      value={editingGroupNameValue}
+                      onChange={(e) => setEditingGroupNameValue(e.target.value)}
+                      onBlur={() => {
+                        if (editingGroupNameValue.trim() && editingGroupNameValue !== group.name) {
+                          updateCashFlowGroup(group.id, { name: editingGroupNameValue.trim() });
+                          loadData();
+                        }
                         setEditingGroupNameId(null);
-                      }
-                    }}
-                    className="text-lg font-medium text-black mb-4 bg-transparent border-b-2 border-[#3f3b39] focus:outline-none px-1"
-                    autoFocus
-                  />
-                ) : (
-                  <h3 
-                    className="text-lg font-medium text-black mb-4 cursor-pointer hover:text-gray-700 transition-colors"
-                    onClick={() => {
-                      setEditingGroupNameId(group.id);
-                      setEditingGroupNameValue(group.name);
-                    }}
-                  >
-                    {group.name}
-                  </h3>
-                )}
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.currentTarget.blur();
+                        } else if (e.key === 'Escape') {
+                          setEditingGroupNameId(null);
+                        }
+                      }}
+                      className="text-lg font-medium text-black bg-transparent border-b-2 border-[#3f3b39] focus:outline-none px-1 flex-1"
+                      autoFocus
+                    />
+                  ) : (
+                    <h3 
+                      className="text-lg font-medium text-black cursor-pointer hover:text-gray-700 transition-colors flex-1"
+                      onClick={() => {
+                        setEditingGroupNameId(group.id);
+                        setEditingGroupNameValue(group.name);
+                      }}
+                    >
+                      {group.name}
+                    </h3>
+                  )}
+                </div>
                 <div className="space-y-2">
                   {groupItems.map((item, index) => {
                     const actualIndex = lineItems.findIndex(i => i.id === item.id);
@@ -579,15 +620,24 @@ export default function SettingsPage() {
                           draggedIndex === actualIndex ? 'opacity-50' : ''
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-1 text-gray-400 cursor-grab active:cursor-grabbing">
-                            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                          </div>
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
                           <span className="font-medium text-black">{item.name}</span>
+                          {item.notes && (
+                            <span className="text-sm font-light text-gray-500">| {item.notes}</span>
+                          )}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="flex items-center gap-0.5 text-gray-400 cursor-move hover:text-gray-600"
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                            }}
+                          >
+                            <div className="w-1 h-1 bg-current rounded-full"></div>
+                            <div className="w-1 h-1 bg-current rounded-full"></div>
+                            <div className="w-1 h-1 bg-current rounded-full"></div>
+                            <div className="w-1 h-1 bg-current rounded-full"></div>
+                          </div>
                           <button
                             onClick={() => handleEdit(item)}
                             className="text-gray-400 hover:text-black p-1.5 rounded-lg hover:bg-gray-200 cursor-pointer"
@@ -595,15 +645,6 @@ export default function SettingsPage() {
                           >
                             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                               <path d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354L12.427 2.487zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064L11.189 6.25z" fill="currentColor"/>
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 cursor-pointer"
-                            title="Delete"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M5 5L15 15M15 5L5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                             </svg>
                           </button>
                         </div>
@@ -632,15 +673,24 @@ export default function SettingsPage() {
                         draggedIndex === actualIndex ? 'opacity-50' : ''
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1 text-gray-400 cursor-grab active:cursor-grabbing">
-                          <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                          <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                          <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                        </div>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
                         <span className="font-medium text-black">{item.name}</span>
+                        {item.notes && (
+                          <span className="text-sm font-light text-gray-500">| {item.notes}</span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="flex items-center gap-0.5 text-gray-400 cursor-move hover:text-gray-600"
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                          }}
+                        >
+                          <div className="w-1 h-1 bg-current rounded-full"></div>
+                          <div className="w-1 h-1 bg-current rounded-full"></div>
+                          <div className="w-1 h-1 bg-current rounded-full"></div>
+                          <div className="w-1 h-1 bg-current rounded-full"></div>
+                        </div>
                         <button
                           onClick={() => handleEdit(item)}
                           className="text-gray-400 hover:text-black p-1.5 rounded-lg hover:bg-gray-200 cursor-pointer"
@@ -648,15 +698,6 @@ export default function SettingsPage() {
                         >
                           <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354L12.427 2.487zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064L11.189 6.25z" fill="currentColor"/>
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 cursor-pointer"
-                          title="Delete"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M5 5L15 15M15 5L5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                           </svg>
                         </button>
                       </div>
@@ -698,7 +739,7 @@ export default function SettingsPage() {
                 <select
                   value={formData.type}
                   onChange={(e) => {
-                    setFormData({ ...formData, type: e.target.value as 'income' | 'expense', groupId: '', newGroupName: '' });
+                    setFormData({ ...formData, type: e.target.value as 'income' | 'expense', groupId: '', newGroupName: '', notes: formData.notes });
                     setIsCreatingNewGroup(false);
                   }}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all cursor-pointer"
@@ -744,7 +785,31 @@ export default function SettingsPage() {
                   />
                 )}
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Notes (optional)</label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all resize-none"
+                  placeholder="Add notes about this line item..."
+                  rows={3}
+                />
+              </div>
               <div className="flex space-x-3 pt-2">
+                {editingItem && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm('Are you sure you want to delete this line item?')) {
+                        handleDelete(editingItem.id);
+                        resetForm();
+                      }
+                    }}
+                    className="px-5 py-3 border border-red-200 text-red-600 rounded-xl hover:bg-red-50 transition-all font-medium cursor-pointer"
+                  >
+                    Delete
+                  </button>
+                )}
                 <button
                   type="submit"
                   className="flex-1 px-5 py-3 bg-[#3f3b39] text-white rounded-xl hover:bg-[#4d4845] transition-all font-medium shadow-soft cursor-pointer"
@@ -923,6 +988,26 @@ export default function SettingsPage() {
                 </label>
               </div>
               <p className="text-xs text-gray-500 mt-2 font-light">Theme preference coming soon</p>
+            </div>
+
+            {/* Show Category Notes in Cash Flow Tab */}
+            <div>
+              <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showCategoryNotesInCashFlow}
+                  onChange={(e) => {
+                    const newValue = e.target.checked;
+                    setShowCategoryNotesInCashFlow(newValue);
+                    updatePreferences({ showCategoryNotesInCashFlow: newValue });
+                  }}
+                  className="w-4 h-4 text-[#3f3b39] border-gray-300 focus:ring-[#3f3b39] cursor-pointer rounded"
+                />
+                <div className="flex-1">
+                  <span className="text-gray-700 font-medium block">Show category notes in cash flow tab</span>
+                  <span className="text-xs text-gray-500 font-light">Display notes from line items in the cash flow statement</span>
+                </div>
+              </label>
             </div>
           </div>
         </div>
