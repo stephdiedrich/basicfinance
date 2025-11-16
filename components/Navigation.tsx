@@ -46,7 +46,7 @@ export default function Navigation() {
           )}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-2 rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center group ml-auto"
+            className="p-2 rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center group ml-auto cursor-pointer"
             aria-label={isExpanded ? 'Collapse menu' : 'Expand menu'}
           >
             <svg 
@@ -70,7 +70,7 @@ export default function Navigation() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group ${
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group cursor-pointer ${
                   isActive
                     ? 'bg-[#3f3b39] text-white shadow-soft'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-[#3f3b39]'
@@ -98,7 +98,7 @@ export default function Navigation() {
         <div className="px-3 pb-4 border-t border-gray-100 pt-4">
           <Link
             href="/settings"
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group ${
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group cursor-pointer ${
               pathname === '/settings'
                 ? 'bg-[#3f3b39] text-white shadow-soft'
                 : 'text-gray-600 hover:bg-gray-50 hover:text-[#3f3b39]'

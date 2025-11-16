@@ -117,7 +117,7 @@ export default function TransactionsPage() {
         </div>
         <button
           onClick={() => setIsFormOpen(true)}
-          className="px-5 py-2.5 bg-[#3f3b39] text-white rounded-xl hover:bg-[#4d4845] transition-all font-medium text-sm shadow-soft"
+          className="px-5 py-2.5 bg-[#3f3b39] text-white rounded-xl hover:bg-[#4d4845] transition-all font-medium text-sm shadow-soft cursor-pointer"
         >
           + Add Transaction
         </button>
@@ -203,14 +203,14 @@ export default function TransactionsPage() {
             <div className="flex space-x-3 pt-2">
               <button
                 type="submit"
-                className="flex-1 px-5 py-3 bg-[#3f3b39] text-white rounded-xl hover:bg-[#4d4845] transition-all font-medium shadow-soft"
+                className="flex-1 px-5 py-3 bg-[#3f3b39] text-white rounded-xl hover:bg-[#4d4845] transition-all font-medium shadow-soft cursor-pointer"
               >
                 {editingTransaction ? 'Update' : 'Add'} Transaction
               </button>
               <button
                 type="button"
                 onClick={resetForm}
-                className="px-5 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all font-medium"
+                className="px-5 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all font-medium cursor-pointer"
               >
                 Cancel
               </button>
@@ -262,13 +262,13 @@ export default function TransactionsPage() {
                     <div className="flex space-x-2">
                       <button
                         onClick={() => handleEdit(transaction)}
-                        className="px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50 transition-all font-medium text-gray-700"
+                        className="px-4 py-2 text-sm border border-gray-200 rounded-xl hover:bg-gray-50 transition-all font-medium text-gray-700 cursor-pointer"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(transaction.id)}
-                        className="px-4 py-2 text-sm border border-red-200 text-red-600 rounded-xl hover:bg-red-50 transition-all font-medium"
+                        className="px-4 py-2 text-sm border border-red-200 text-red-600 rounded-xl hover:bg-red-50 transition-all font-medium cursor-pointer"
                       >
                         Delete
                       </button>

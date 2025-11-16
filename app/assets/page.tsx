@@ -416,11 +416,11 @@ export default function AssetsPage() {
                 onDrop={isDraggable ? (e) => handleTabDrop(e, category, index) : undefined}
                 onDragEnd={isDraggable ? handleTabDragEnd : undefined}
                 onClick={() => setSelectedCategory(category)}
-                className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap text-sm font-medium ${
+                className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap text-sm font-medium cursor-pointer ${
                   selectedCategory === category
                     ? 'bg-white text-[#3f3b39] shadow-soft'
                     : 'text-gray-600 hover:text-[#3f3b39]'
-                } ${isDragging ? 'opacity-50' : ''} ${isDraggable ? 'cursor-move' : ''}`}
+                } ${isDragging ? 'opacity-50' : ''}`}
               >
                 {label} <span className="text-gray-500 font-normal">({formatCurrency(total)})</span>
               </button>
@@ -430,7 +430,7 @@ export default function AssetsPage() {
                     e.stopPropagation();
                     handleEditClass(assetClass);
                   }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-[#3f3b39]"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-[#3f3b39] cursor-pointer"
                   title="Edit category name"
                 >
                   <svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -443,7 +443,7 @@ export default function AssetsPage() {
         })}
         <button
           onClick={() => setIsViewFormOpen(true)}
-          className="px-4 py-2 rounded-lg transition-all whitespace-nowrap text-sm font-medium text-gray-600 hover:text-[#3f3b39] hover:bg-white"
+          className="px-4 py-2 rounded-lg transition-all whitespace-nowrap text-sm font-medium text-gray-600 hover:text-[#3f3b39] hover:bg-white cursor-pointer"
         >
           + View
         </button>
@@ -454,12 +454,12 @@ export default function AssetsPage() {
         <table className="w-full">
           <thead>
             <tr className="bg-gray-50/50 border-b border-gray-100">
-              <th className="px-8 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8"></th>
               <th className="px-8 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
               <th className="px-8 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
               <th className="px-8 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
               <th className="px-8 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Institution</th>
               <th className="px-8 py-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-12"></th>
+              <th className="px-8 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-8"></th>
             </tr>
           </thead>
           <tbody>
@@ -484,24 +484,14 @@ export default function AssetsPage() {
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, index)}
                   onDragEnd={handleDragEnd}
-                  className={`border-b border-gray-100 hover:bg-gray-50/50 transition-colors cursor-move ${
+                  className={`group border-b border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer ${
                     draggedIndex === index ? 'opacity-50' : ''
                   }`}
                 >
                   <td className="px-8 py-4">
-                    <div className="flex items-center gap-1 text-gray-400 cursor-grab active:cursor-grabbing">
-                      <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                      <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                      <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                    </div>
-                  </td>
-                  <td className="px-8 py-4">
-                    <button
-                      onClick={() => handleEdit(asset)}
-                      className="text-left font-medium text-[#3f3b39] hover:text-gray-700 transition-colors"
-                    >
+                    <span className="font-medium text-[#3f3b39]">
                       {asset.name}
-                    </button>
+                    </span>
                   </td>
                   <td className="px-8 py-4 text-gray-600 font-light">
                     {assetClasses.find(ac => ac.id === asset.type)?.name || asset.type}
@@ -512,15 +502,25 @@ export default function AssetsPage() {
                   <td className="px-8 py-4 text-gray-500">
                     {asset.institution || '—'}
                   </td>
-                  <td className="px-8 py-4 text-right">
+                  <td className="px-8 py-4">
                     <button
-                      onClick={() => handleDelete(asset.id)}
-                      className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded hover:bg-red-50"
+                      onClick={() => handleEdit(asset)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-[#3f3b39] p-1.5 rounded-lg hover:bg-gray-200 cursor-pointer"
+                      title="Edit asset"
                     >
                       <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M5 5L15 15M15 5L5 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                        <path d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354L12.427 2.487zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064L11.189 6.25z" fill="currentColor"/>
                       </svg>
                     </button>
+                  </td>
+                  <td className="px-8 py-4">
+                    <div className="flex items-center justify-center text-gray-400 cursor-grab active:cursor-grabbing">
+                      <div className="flex flex-col gap-0.5">
+                        <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+                        <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+                        <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -528,10 +528,10 @@ export default function AssetsPage() {
             {filteredAssets.length > 0 && (
               <tr className="bg-gray-50/50 border-t-2 border-gray-200">
                 <td colSpan={2} className="px-8 py-4 font-medium text-[#3f3b39]">Total</td>
-                <td className="px-8 py-4"></td>
                 <td className="px-8 py-4 font-medium text-[#3f3b39]">
                   {formatCurrency(getCategoryTotal(selectedCategory))}
                 </td>
+                <td className="px-8 py-4"></td>
                 <td colSpan={2} className="px-8 py-4"></td>
               </tr>
             )}
@@ -543,9 +543,9 @@ export default function AssetsPage() {
       <div className="mt-6">
         <button
           onClick={() => setIsFormOpen(true)}
-              className="px-5 py-2.5 bg-[#3f3b39] text-white rounded-xl hover:bg-[#4d4845] transition-all font-medium text-sm shadow-soft"
+          className="text-gray-500 hover:text-[#3f3b39] transition-colors font-light text-sm cursor-pointer"
         >
-          + Add Asset
+          + Add
         </button>
       </div>
 
@@ -584,7 +584,7 @@ export default function AssetsPage() {
                   <button
                     type="button"
                     onClick={() => setIsNewClassFormOpen(true)}
-                    className="px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 text-sm font-medium transition-all"
+                    className="px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 text-sm font-medium transition-all cursor-pointer"
                     title="Add new category"
                   >
                     +
@@ -624,14 +624,29 @@ export default function AssetsPage() {
               <div className="flex space-x-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 px-5 py-3 bg-[#3f3b39] text-white rounded-xl hover:bg-[#4d4845] transition-all font-medium shadow-soft"
+                  className="flex-1 px-5 py-3 bg-[#3f3b39] text-white rounded-xl hover:bg-[#4d4845] transition-all font-medium shadow-soft cursor-pointer"
                 >
                   {editingAsset ? 'Update' : 'Add'} Asset
                 </button>
+                {editingAsset && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm('Are you sure you want to delete this asset? This action cannot be undone.')) {
+                        deleteAsset(editingAsset.id);
+                        resetForm();
+                        loadData();
+                      }
+                    }}
+                    className="px-5 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-medium shadow-soft cursor-pointer"
+                  >
+                    Delete
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="px-5 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all font-medium"
+                  className="px-5 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all font-medium cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -690,7 +705,7 @@ export default function AssetsPage() {
               <div className="flex space-x-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 px-5 py-3 bg-[#3f3b39] text-white rounded-xl hover:bg-[#4d4845] transition-all font-medium shadow-soft"
+                  className="flex-1 px-5 py-3 bg-[#3f3b39] text-white rounded-xl hover:bg-[#4d4845] transition-all font-medium shadow-soft cursor-pointer"
                 >
                   Create View
                 </button>
@@ -700,7 +715,7 @@ export default function AssetsPage() {
                     setIsViewFormOpen(false);
                     setViewFormData({ name: '', filterCategories: [] });
                   }}
-                  className="px-5 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all font-medium"
+                  className="px-5 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all font-medium cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -730,14 +745,14 @@ export default function AssetsPage() {
               <div className="flex space-x-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 px-5 py-3 bg-[#3f3b39] text-white rounded-xl hover:bg-[#4d4845] transition-all font-medium shadow-soft"
+                  className="flex-1 px-5 py-3 bg-[#3f3b39] text-white rounded-xl hover:bg-[#4d4845] transition-all font-medium shadow-soft cursor-pointer"
                 >
                   Add Category
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsNewClassFormOpen(false)}
-                  className="px-5 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all font-medium"
+                  className="px-5 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all font-medium cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -768,7 +783,7 @@ export default function AssetsPage() {
               <div className="flex space-x-3 pt-2">
                 <button
                   type="submit"
-                  className="flex-1 px-5 py-3 bg-[#3f3b39] text-white rounded-xl hover:bg-[#4d4845] transition-all font-medium shadow-soft"
+                  className="flex-1 px-5 py-3 bg-[#3f3b39] text-white rounded-xl hover:bg-[#4d4845] transition-all font-medium shadow-soft cursor-pointer"
                 >
                   Save Changes
                 </button>
@@ -779,7 +794,7 @@ export default function AssetsPage() {
                     setEditingAssetClass(null);
                     setEditClassFormData({ name: '' });
                   }}
-                  className="px-5 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all font-medium"
+                  className="px-5 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all font-medium cursor-pointer"
                 >
                   Cancel
                 </button>

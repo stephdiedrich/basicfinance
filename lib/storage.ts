@@ -1,4 +1,4 @@
-import { FinancialData, Asset, Liability, Transaction, AssetClass, AssetView } from '@/types';
+import { FinancialData, Asset, Liability, Transaction, AssetClass, AssetView, LiabilityClass, LiabilityView } from '@/types';
 
 const STORAGE_KEY = 'financial-data';
 
@@ -10,12 +10,22 @@ const defaultAssetClasses: AssetClass[] = [
   { id: 'retirement', name: 'Retirement' },
 ];
 
+const defaultLiabilityClasses: LiabilityClass[] = [
+  { id: 'credit-card', name: 'Credit Card' },
+  { id: 'mortgage', name: 'Mortgage' },
+  { id: 'student-loan', name: 'Student Loan' },
+  { id: 'auto-loan', name: 'Auto Loan' },
+  { id: 'personal-loan', name: 'Personal Loan' },
+];
+
 const defaultData: FinancialData = {
   assets: [],
   liabilities: [],
   transactions: [],
   assetClasses: defaultAssetClasses,
   assetViews: [],
+  liabilityClasses: defaultLiabilityClasses,
+  liabilityViews: [],
 };
 
 export function getFinancialData(): FinancialData {
@@ -101,6 +111,26 @@ export function addLiability(liability: Omit<Liability, 'id' | 'dateAdded'>): vo
     dateAdded: new Date().toISOString(),
   };
   data.liabilities.push(newLiability);
+  saveFinancialData(data);
+}
+
+export function reorderLiabilities(liabilityIds: string[]): void {
+  const data = getFinancialData();
+  const liabilityMap = new Map(data.liabilities.map(l => [l.id, l]));
+  const reordered: Liability[] = [];
+  liabilityIds.forEach((id, index) => {
+    const liability = liabilityMap.get(id);
+    if (liability) {
+      reordered.push({ ...liability, order: index });
+    }
+  });
+  // Add any liabilities not in the reordered list
+  data.liabilities.forEach(liability => {
+    if (!liabilityIds.includes(liability.id)) {
+      reordered.push(liability);
+    }
+  });
+  data.liabilities = reordered;
   saveFinancialData(data);
 }
 
@@ -287,6 +317,124 @@ export function reorderAssetViews(viewIds: string[]): void {
     }
   });
   data.assetViews = reordered;
+  saveFinancialData(data);
+}
+
+// Liability Classes
+export function getLiabilityClasses(): LiabilityClass[] {
+  const data = getFinancialData();
+  return data.liabilityClasses || defaultLiabilityClasses;
+}
+
+export function addLiabilityClass(name: string): LiabilityClass {
+  const data = getFinancialData();
+  const newClass: LiabilityClass = {
+    id: name.toLowerCase().replace(/\s+/g, '-'),
+    name: name,
+  };
+  if (!data.liabilityClasses) {
+    data.liabilityClasses = [];
+  }
+  data.liabilityClasses.push(newClass);
+  saveFinancialData(data);
+  return newClass;
+}
+
+export function updateLiabilityClass(id: string, updates: Partial<LiabilityClass>): void {
+  const data = getFinancialData();
+  if (!data.liabilityClasses) return;
+  const index = data.liabilityClasses.findIndex(lc => lc.id === id);
+  if (index !== -1) {
+    data.liabilityClasses[index] = { ...data.liabilityClasses[index], ...updates };
+    saveFinancialData(data);
+  }
+}
+
+export function deleteLiabilityClass(id: string): void {
+  const data = getFinancialData();
+  if (data.liabilityClasses) {
+    data.liabilityClasses = data.liabilityClasses.filter(lc => lc.id !== id);
+    saveFinancialData(data);
+  }
+}
+
+export function reorderLiabilityClasses(classIds: string[]): void {
+  const data = getFinancialData();
+  if (!data.liabilityClasses) return;
+  const classMap = new Map(data.liabilityClasses.map(lc => [lc.id, lc]));
+  const reordered: LiabilityClass[] = [];
+  classIds.forEach((id, index) => {
+    const liabilityClass = classMap.get(id);
+    if (liabilityClass) {
+      reordered.push({ ...liabilityClass, order: index });
+    }
+  });
+  // Add any classes not in the reordered list
+  data.liabilityClasses.forEach(liabilityClass => {
+    if (!classIds.includes(liabilityClass.id)) {
+      reordered.push(liabilityClass);
+    }
+  });
+  data.liabilityClasses = reordered;
+  saveFinancialData(data);
+}
+
+// Liability Views
+export function getLiabilityViews(): LiabilityView[] {
+  const data = getFinancialData();
+  return data.liabilityViews || [];
+}
+
+export function addLiabilityView(view: Omit<LiabilityView, 'id'>): LiabilityView {
+  const data = getFinancialData();
+  const newView: LiabilityView = {
+    ...view,
+    id: crypto.randomUUID(),
+  };
+  if (!data.liabilityViews) {
+    data.liabilityViews = [];
+  }
+  data.liabilityViews.push(newView);
+  saveFinancialData(data);
+  return newView;
+}
+
+export function updateLiabilityView(id: string, updates: Partial<LiabilityView>): void {
+  const data = getFinancialData();
+  if (!data.liabilityViews) return;
+  const index = data.liabilityViews.findIndex(v => v.id === id);
+  if (index !== -1) {
+    data.liabilityViews[index] = { ...data.liabilityViews[index], ...updates };
+    saveFinancialData(data);
+  }
+}
+
+export function deleteLiabilityView(id: string): void {
+  const data = getFinancialData();
+  if (data.liabilityViews) {
+    data.liabilityViews = data.liabilityViews.filter(v => v.id !== id);
+    saveFinancialData(data);
+  }
+}
+
+export function reorderLiabilityViews(viewIds: string[]): void {
+  const data = getFinancialData();
+  if (!data.liabilityViews) return;
+  const viewMap = new Map(data.liabilityViews.map(v => [v.id, v]));
+  const reordered: LiabilityView[] = [];
+  viewIds.forEach(id => {
+    const view = viewMap.get(id);
+    if (view) {
+      reordered.push(view);
+    }
+  });
+  // Add any views not in the reordered list
+  data.liabilityViews.forEach(view => {
+    if (!viewIds.includes(view.id)) {
+      reordered.push(view);
+    }
+  });
+  data.liabilityViews = reordered;
   saveFinancialData(data);
 }
 

@@ -26,13 +26,31 @@ export interface AssetClass {
   order?: number;
 }
 
+export type LiabilityType = string; // Dynamic - can be any string
+
 export interface Liability {
   id: string;
   name: string;
+  type: LiabilityType;
   amount: number;
   interestRate?: number;
   dateAdded: string;
   notes?: string;
+  order?: number;
+}
+
+export interface LiabilityView {
+  id: string;
+  name: string;
+  filterCategories?: string[];
+  customOrder?: string[];
+}
+
+export interface LiabilityClass {
+  id: string;
+  name: string;
+  color?: string;
+  order?: number;
 }
 
 export type TransactionType = 'income' | 'expense';
@@ -62,5 +80,7 @@ export interface FinancialData {
   transactions: Transaction[];
   assetClasses: AssetClass[];
   assetViews: AssetView[];
+  liabilityClasses: LiabilityClass[];
+  liabilityViews: LiabilityView[];
 }
 
