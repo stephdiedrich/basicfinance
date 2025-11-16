@@ -79,6 +79,9 @@ export default function Home() {
     const now = new Date();
     const currentMonthIndex = now.getMonth();
     
+    // Fixed monthly growth percentage (2% per month)
+    const monthlyGrowthRate = 0.02;
+    
     // Calculate current asset values by class
     const currentValuesByClass = new Map<string, number>();
     assetClasses.forEach(ac => {
@@ -94,14 +97,15 @@ export default function Home() {
     
     for (let i = 11; i >= 0; i--) {
       const monthIndex = (currentMonthIndex - i + 12) % 12;
-      const progress = (12 - i) / 12;
       const point: { month: string; [key: string]: number | string } = { month: months[monthIndex] };
       
-      // Generate values for each asset class with gradual growth
+      // Generate values for each asset class using fixed monthly growth rate
+      // Calculate backward from current value: monthsAgo = currentValue / (1 + growthRate)^monthsAgo
       assetClasses.forEach(ac => {
         const currentValue = currentValuesByClass.get(ac.name) || 0;
-        const baseValue = currentValue * 0.7; // Start at 70% of current
-        const value = baseValue + (currentValue - baseValue) * progress + (Math.random() - 0.5) * Math.max(currentValue, 1000) * 0.05;
+        const monthsAgo = 11 - i; // How many months back from current
+        // Apply compound growth backward: divide by (1 + growthRate)^monthsAgo
+        const value = currentValue / Math.pow(1 + monthlyGrowthRate, monthsAgo);
         point[ac.name] = Math.max(0, value);
       });
       

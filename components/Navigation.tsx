@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { config } from '@/lib/config';
 
 const navItems = [
   { href: '/', label: 'Home', icon: (
@@ -42,7 +43,15 @@ export default function Navigation() {
         {/* Header with Wordmark and Toggle */}
         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
           {isExpanded && (
-            <span className="font-medium text-lg text-black tracking-tight">BasicFi</span>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-lg text-black tracking-tight">BasicFi</span>
+              {config.isBeta && (
+                <div className="flex items-center gap-1.5">
+                  <span className="px-2 py-0.5 text-xs font-medium bg-green-50 text-green-700 rounded-md">Beta</span>
+                  <span className="text-xs text-gray-400 font-light">v{config.version}</span>
+                </div>
+              )}
+            </div>
           )}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
