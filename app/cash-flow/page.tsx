@@ -1,39 +1,61 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { getFinancialData, getMonthlyCashFlow } from '@/lib/storage';
+import React, { useEffect, useState } from 'react';
+import { getFinancialData, getBudgets, getCashFlowLineItems, getCashFlowGroups, getCashFlowCategories } from '@/lib/storage';
+import { Transaction, BudgetItem, CashFlowLineItem, CashFlowGroup, CashFlowCategory } from '@/types';
 
-interface MonthlyData {
-  month: string;
-  income: number;
-  expenses: number;
-  net: number;
+type ViewMode = 'month' | 'year';
+
+interface ExpenseItem {
+  name: string;
+  category: string;
+  subCategory?: string;
+  budgeted: number;
+  spent: number;
+  percent: number;
+}
+
+interface ExpenseGroup {
+  name: string;
+  items: ExpenseItem[];
+  totalBudgeted: number;
+  totalSpent: number;
+  totalPercent: number;
 }
 
 export default function CashFlowPage() {
-  const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+  const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [budgets, setBudgets] = useState<BudgetItem[]>([]);
+  const [lineItems, setLineItems] = useState<CashFlowLineItem[]>([]);
+  const [groups, setGroups] = useState<CashFlowGroup[]>([]);
+  const [categories, setCategories] = useState<CashFlowCategory[]>([]);
 
   useEffect(() => {
-    loadCashFlowData();
-    const interval = setInterval(loadCashFlowData, 1000);
+    loadData();
+    const interval = setInterval(loadData, 1000);
     return () => clearInterval(interval);
-  }, [selectedYear]);
+  }, [selectedYear, selectedMonth, viewMode]);
 
-  const loadCashFlowData = () => {
-    const months = [];
-    for (let month = 1; month <= 12; month++) {
-      const flow = getMonthlyCashFlow(selectedYear, month);
-      const monthName = new Date(selectedYear, month - 1).toLocaleDateString('en-US', { month: 'short' });
-      months.push({
-        month: monthName,
-        income: flow.income,
-        expenses: flow.expenses,
-        net: flow.income - flow.expenses,
-      });
+  const loadData = () => {
+    const data = getFinancialData();
+    setTransactions(data.transactions || []);
+    setLineItems(getCashFlowLineItems());
+    setGroups(getCashFlowGroups());
+    setCategories(getCashFlowCategories());
+    if (viewMode === 'month') {
+      setBudgets(getBudgets(selectedYear, selectedMonth));
+    } else {
+      // For annual view, get all budgets for the year
+      const allBudgets: BudgetItem[] = [];
+      for (let m = 1; m <= 12; m++) {
+        allBudgets.push(...getBudgets(selectedYear, m));
+      }
+      setBudgets(allBudgets);
     }
-    setMonthlyData(months);
   };
 
   const formatCurrency = (amount: number) => {
@@ -45,9 +67,151 @@ export default function CashFlowPage() {
     }).format(amount);
   };
 
-  const totalIncome = monthlyData.reduce((sum, m) => sum + m.income, 0);
-  const totalExpenses = monthlyData.reduce((sum, m) => sum + m.expenses, 0);
-  const netCashFlow = totalIncome - totalExpenses;
+  // Get transactions for the selected period
+  const getPeriodTransactions = (): Transaction[] => {
+    if (viewMode === 'year') {
+      return transactions.filter(t => {
+        const date = new Date(t.date);
+        return date.getFullYear() === selectedYear;
+      });
+    } else {
+      return transactions.filter(t => {
+        const date = new Date(t.date);
+        return date.getFullYear() === selectedYear && date.getMonth() + 1 === selectedMonth;
+      });
+    }
+  };
+
+  const periodTransactions = getPeriodTransactions();
+
+  // Get income line items organized by groups (matching settings structure)
+  const incomeLineItems = lineItems
+    .filter(item => item.type === 'income')
+    .sort((a, b) => {
+      if (a.groupId !== b.groupId) {
+        if (!a.groupId) return 1;
+        if (!b.groupId) return -1;
+        const groupA = groups.find(g => g.id === a.groupId);
+        const groupB = groups.find(g => g.id === b.groupId);
+        if (!groupA || !groupB) return 0;
+        return groupA.order - groupB.order;
+      }
+      return a.order - b.order;
+    });
+
+  // Calculate income amounts for each item
+  const incomeItemsMap = new Map<string, number>();
+  incomeLineItems.forEach(item => {
+    const category = item.categoryId ? categories.find(c => c.id === item.categoryId) : null;
+    const matched = periodTransactions.filter(t => {
+      if (t.type !== 'income') return false;
+      // Match by category name if set
+      if (category && t.description.toLowerCase().includes(category.name.toLowerCase())) return true;
+      // Match by line item name
+      if (t.description.toLowerCase().includes(item.name.toLowerCase())) return true;
+      return false;
+    });
+    const total = matched.reduce((sum, t) => sum + t.amount, 0);
+    incomeItemsMap.set(item.id, total);
+  });
+
+  const totalIncome = Array.from(incomeItemsMap.values()).reduce((sum, amount) => sum + amount, 0);
+
+  // Get expense line items and organize by groups
+  const expenseLineItems = lineItems
+    .filter(item => item.type === 'expense')
+    .sort((a, b) => {
+      if (a.groupId !== b.groupId) {
+        if (!a.groupId) return 1;
+        if (!b.groupId) return -1;
+        const groupA = groups.find(g => g.id === a.groupId);
+        const groupB = groups.find(g => g.id === b.groupId);
+        if (!groupA || !groupB) return 0;
+        return groupA.order - groupB.order;
+      }
+      return a.order - b.order;
+    });
+
+  // Build expense groups from line items
+  const expenseGroupsMap = new Map<string, ExpenseGroup>();
+  
+  expenseLineItems.forEach(lineItem => {
+    const group = lineItem.groupId ? groups.find(g => g.id === lineItem.groupId) : null;
+    const groupName = group?.name || 'Ungrouped';
+    
+    if (!expenseGroupsMap.has(groupName)) {
+      expenseGroupsMap.set(groupName, {
+        name: groupName,
+        items: [],
+        totalBudgeted: 0,
+        totalSpent: 0,
+        totalPercent: 0,
+      });
+    }
+    
+    const expenseGroup = expenseGroupsMap.get(groupName)!;
+    const category = lineItem.categoryId ? categories.find(c => c.id === lineItem.categoryId) : null;
+    
+    // Get spent amount from transactions - match by category name or line item name
+    const spent = periodTransactions
+      .filter(t => {
+        if (t.type !== 'expense') return false;
+        // Match by category name if set
+        if (category && t.description.toLowerCase().includes(category.name.toLowerCase())) return true;
+        // Match by line item name
+        if (t.description.toLowerCase().includes(lineItem.name.toLowerCase())) return true;
+        return false;
+      })
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    // Get budgeted amount - match by category name
+    let budgeted = 0;
+    if (category) {
+      if (viewMode === 'month') {
+        const budget = budgets.find(b => 
+          b.category === category.name || b.subCategory === category.name
+        );
+        budgeted = budget?.budgeted || 0;
+      } else {
+        // For annual view, sum all months
+        const yearBudgets = budgets.filter(b => 
+          b.category === category.name || b.subCategory === category.name
+        );
+        budgeted = yearBudgets.reduce((sum, b) => sum + b.budgeted, 0);
+      }
+    }
+
+    const percent = budgeted > 0 ? Math.round((spent / budgeted) * 100) : 0;
+
+    expenseGroup.items.push({
+      name: lineItem.name,
+      category: category?.name || 'other',
+      subCategory: category?.name,
+      budgeted,
+      spent,
+      percent,
+    });
+
+    expenseGroup.totalBudgeted += budgeted;
+    expenseGroup.totalSpent += spent;
+  });
+
+  // Calculate group percentages and convert to array
+  const expenseGroups = Array.from(expenseGroupsMap.values()).map(group => {
+    group.totalPercent = group.totalBudgeted > 0 
+      ? Math.round((group.totalSpent / group.totalBudgeted) * 100) 
+      : 0;
+    return group;
+  });
+
+  const totalExpensesBudgeted = expenseGroups.reduce((sum, g) => sum + g.totalBudgeted, 0);
+  const totalExpensesSpent = expenseGroups.reduce((sum, g) => sum + g.totalSpent, 0);
+  const netIncome = totalIncome - totalExpensesSpent;
+
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
 
   const years = [];
   const currentYear = new Date().getFullYear();
@@ -55,139 +219,293 @@ export default function CashFlowPage() {
     years.push(i);
   }
 
+  const handlePreviousPeriod = () => {
+    if (viewMode === 'month') {
+      if (selectedMonth === 1) {
+        setSelectedMonth(12);
+        setSelectedYear(selectedYear - 1);
+      } else {
+        setSelectedMonth(selectedMonth - 1);
+      }
+    } else {
+      setSelectedYear(selectedYear - 1);
+    }
+  };
+
+  const handleNextPeriod = () => {
+    if (viewMode === 'month') {
+      if (selectedMonth === 12) {
+        setSelectedMonth(1);
+        setSelectedYear(selectedYear + 1);
+      } else {
+        setSelectedMonth(selectedMonth + 1);
+      }
+    } else {
+      setSelectedYear(selectedYear + 1);
+    }
+  };
+
   return (
-    <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 py-10" style={{ paddingLeft: 'calc(280px + 1.5rem)' }}>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-4xl font-medium mb-2 text-[#3f3b39] tracking-tight">Cash Flow</h1>
-          <p className="text-gray-500 text-[15px] font-light">Monthly income vs expenses analysis</p>
+    <div className="w-full pr-8 lg:pr-16 py-10" style={{ paddingLeft: 'calc(280px + 2rem)' }}>
+      <div className="mb-10">
+        <h1 className="text-4xl font-medium mb-2 text-[#3f3b39] tracking-tight">Cash Flow</h1>
+        <p className="text-gray-500 text-[15px] font-light">Monthly income, expenses, and net income overview</p>
         </div>
+
+      {/* Period Navigation */}
+      <div className="mb-8 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handlePreviousPeriod}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 4L6 10L12 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          {viewMode === 'month' ? (
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                className="px-4 py-2 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all font-medium text-sm cursor-pointer"
+              >
+                {months.map((month, index) => (
+                  <option key={index + 1} value={index + 1}>{month}</option>
+                ))}
+              </select>
         <select
           value={selectedYear}
           onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-          className="px-4 py-2.5 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all font-medium text-sm"
+                className="px-4 py-2 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all font-medium text-sm cursor-pointer"
         >
           {years.map((year) => (
-            <option key={year} value={year}>
-              {year}
-            </option>
+                  <option key={year} value={year}>{year}</option>
           ))}
         </select>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-        <div className="bg-white rounded-2xl p-7 shadow-card">
-          <p className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wide">Total Income</p>
-          <p className="text-4xl font-medium tracking-tight text-emerald-600">{formatCurrency(totalIncome)}</p>
-        </div>
-        <div className="bg-white rounded-2xl p-7 shadow-card">
-          <p className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wide">Total Expenses</p>
-          <p className="text-4xl font-medium tracking-tight text-red-600">{formatCurrency(totalExpenses)}</p>
-        </div>
-        <div className="bg-white rounded-2xl p-7 shadow-card">
-          <p className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wide">Net Cash Flow</p>
-          <p className={`text-4xl font-medium tracking-tight ${netCashFlow >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-            {formatCurrency(netCashFlow)}
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-2xl p-6 shadow-card">
-          <h2 className="text-xl font-medium mb-6 text-[#3f3b39]">Income vs Expenses</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis 
-                dataKey="month" 
-                stroke="#6b7280"
-                style={{ fontSize: '12px' }}
-              />
-              <YAxis 
-                stroke="#6b7280"
-                style={{ fontSize: '12px' }}
-                tickFormatter={(value) => `$${value / 1000}k`}
-              />
-              <Tooltip 
-                formatter={(value: number) => formatCurrency(value)}
-                contentStyle={{
-                  backgroundColor: 'white',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                }}
-              />
-              <Legend />
-              <Bar dataKey="income" fill="#10b981" name="Income" />
-              <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="bg-white rounded-2xl p-6 shadow-card">
-          <h2 className="text-xl font-medium mb-6 text-[#3f3b39]">Net Cash Flow Trend</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis 
-                dataKey="month" 
-                stroke="#6b7280"
-                style={{ fontSize: '12px' }}
-              />
-              <YAxis 
-                stroke="#6b7280"
-                style={{ fontSize: '12px' }}
-                tickFormatter={(value) => `$${value / 1000}k`}
-              />
-              <Tooltip 
-                formatter={(value: number) => formatCurrency(value)}
-                contentStyle={{
-                  backgroundColor: 'white',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                }}
-              />
-              <Legend />
-              <Line 
-                type="monotone" 
-                dataKey="net" 
-                stroke="#3b82f6" 
-                strokeWidth={2}
-                name="Net Cash Flow"
-                dot={{ fill: '#3b82f6', r: 4 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl p-6 shadow-card overflow-hidden">
-        <h2 className="text-xl font-medium mb-6 text-[#3f3b39]">Monthly Breakdown</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-100">
-                <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Month</th>
-                <th className="text-right py-4 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Income</th>
-                <th className="text-right py-4 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Expenses</th>
-                <th className="text-right py-4 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Net</th>
-              </tr>
-            </thead>
-            <tbody>
-              {monthlyData.map((data, index) => (
-                <tr key={index} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                  <td className="py-4 px-6 font-medium text-[#3f3b39]">{data.month}</td>
-                  <td className="py-4 px-6 text-right font-medium text-emerald-600">{formatCurrency(data.income)}</td>
-                  <td className="py-4 px-6 text-right font-medium text-red-600">{formatCurrency(data.expenses)}</td>
-                  <td className={`py-4 px-6 text-right font-medium ${data.net >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {formatCurrency(data.net)}
-                  </td>
-                </tr>
+          ) : (
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              className="px-4 py-2 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all font-medium text-sm cursor-pointer"
+            >
+              {years.map((year) => (
+                <option key={year} value={year}>{year}</option>
               ))}
-            </tbody>
-          </table>
+            </select>
+          )}
+          <button
+            onClick={handleNextPeriod}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 4L14 10L8 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </div>
+        <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl">
+          <button
+            onClick={() => setViewMode('month')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+              viewMode === 'month'
+                ? 'bg-white text-[#3f3b39] shadow-soft'
+                : 'text-gray-600 hover:text-[#3f3b39]'
+            }`}
+          >
+            Month
+          </button>
+          <button
+            onClick={() => setViewMode('year')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+              viewMode === 'year'
+                ? 'bg-white text-[#3f3b39] shadow-soft'
+                : 'text-gray-600 hover:text-[#3f3b39]'
+            }`}
+          >
+            Year
+          </button>
+        </div>
+      </div>
+
+      {/* Cash Flow Statement */}
+      <div className="bg-white rounded-2xl shadow-card overflow-hidden">
+        <div className="p-8">
+          {/* Income Section */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-medium mb-6 text-[#3f3b39]">Income</h2>
+            <div className="space-y-6">
+              {/* Income items grouped by groups */}
+              {(groups || []).filter(group => incomeLineItems.some(item => item.groupId === group.id)).map((group) => {
+                const groupItems = incomeLineItems.filter(item => item.groupId === group.id);
+                const groupTotal = groupItems.reduce((sum, item) => sum + (incomeItemsMap.get(item.id) || 0), 0);
+                return (
+                  <div key={group.id} className="border-b border-gray-200 pb-6 last:border-b-0 last:pb-0">
+                    <h3 className="text-lg font-medium text-[#3f3b39] mb-4">{group.name}</h3>
+                    <div className="space-y-2">
+                      {groupItems.map((item) => {
+                        const amount = incomeItemsMap.get(item.id) || 0;
+                        return (
+                          <div key={item.id} className="flex justify-between items-center py-2">
+                            <span className="text-gray-700 font-light">{item.name}</span>
+                            <span className="font-medium text-[#3f3b39]">{formatCurrency(amount)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+              {/* Ungrouped income items */}
+              {incomeLineItems.filter(item => !item.groupId).length > 0 && (
+                <div className="space-y-2">
+                  {incomeLineItems.filter(item => !item.groupId).map((item) => {
+                    const amount = incomeItemsMap.get(item.id) || 0;
+                    return (
+                      <div key={item.id} className="flex justify-between items-center py-2">
+                        <span className="text-gray-700 font-light">{item.name}</span>
+                        <span className="font-medium text-[#3f3b39]">{formatCurrency(amount)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {incomeLineItems.length === 0 && (
+                <div className="py-2 text-gray-500 text-sm">No income line items configured. Add them in Settings.</div>
+              )}
+              <div className="flex justify-between items-center py-3 border-t-2 border-gray-200 mt-2">
+                <span className="font-medium text-[#3f3b39]">Total Income</span>
+                <span className="font-medium text-[#3f3b39]">{formatCurrency(totalIncome)}</span>
+              </div>
+            </div>
+        </div>
+
+          {/* Expenses Section */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-medium text-[#3f3b39]">Expenses</h2>
+              <div className="flex items-center gap-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <span className="w-24 text-right">Budgeted</span>
+                <span className="w-24 text-right">Spent</span>
+                <span className="w-16 text-right">% Budget</span>
+              </div>
+            </div>
+            <div className="space-y-6">
+              {/* Expense groups matching settings structure */}
+              {(groups || []).map((group) => {
+                const groupExpenseData = expenseGroups.find(g => g.name === group.name);
+                if (!groupExpenseData || groupExpenseData.items.length === 0) return null;
+                
+                return (
+                  <div key={group.id} className="border-b border-gray-200 pb-6 last:border-b-0 last:pb-0">
+                    <h3 className="text-lg font-medium text-[#3f3b39] mb-4">{group.name}</h3>
+                    <div className="space-y-2">
+                      {groupExpenseData.items.map((item, itemIndex) => (
+                        <div
+                          key={itemIndex}
+                          className={`flex justify-between items-center py-2 ${
+                            item.percent > 100 ? 'bg-orange-50 rounded-lg px-3' : ''
+                          }`}
+                        >
+                          <span className="text-gray-700 font-light">{item.name}</span>
+                          <div className="flex items-center gap-6">
+                            <span className="text-right font-light text-gray-700 w-24">
+                              {formatCurrency(item.budgeted)}
+                            </span>
+                            <span className="text-right font-light text-gray-700 w-24">
+                              {formatCurrency(item.spent)}
+                            </span>
+                            <span className={`text-right font-medium w-16 ${
+                              item.percent > 100 ? 'text-orange-600' : 'text-gray-700'
+                            }`}>
+                              {item.percent}%
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center py-2 border-t border-gray-200 mt-2 pt-2">
+                        <span className="font-medium text-[#3f3b39]">{group.name}</span>
+                        <div className="flex items-center gap-6">
+                          <span className="text-right font-medium text-[#3f3b39] w-24">
+                            {formatCurrency(groupExpenseData.totalBudgeted)}
+                          </span>
+                          <span className="text-right font-medium text-[#3f3b39] w-24">
+                            {formatCurrency(groupExpenseData.totalSpent)}
+                          </span>
+                          <span className={`text-right font-medium w-16 ${
+                            groupExpenseData.totalPercent > 100 ? 'text-orange-600' : 'text-[#3f3b39]'
+                          }`}>
+                            {groupExpenseData.totalPercent}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {/* Ungrouped expenses */}
+              {expenseGroups.find(g => g.name === 'Ungrouped') && (() => {
+                const ungrouped = expenseGroups.find(g => g.name === 'Ungrouped')!;
+                if (ungrouped.items.length === 0) return null;
+                return (
+                  <div className="space-y-2">
+                    {ungrouped.items.map((item, itemIndex) => (
+                      <div
+                        key={itemIndex}
+                        className={`flex justify-between items-center py-2 ${
+                          item.percent > 100 ? 'bg-orange-50 rounded-lg px-3' : ''
+                        }`}
+                      >
+                        <span className="text-gray-700 font-light">{item.name}</span>
+                        <div className="flex items-center gap-6">
+                          <span className="text-right font-light text-gray-700 w-24">
+                            {formatCurrency(item.budgeted)}
+                          </span>
+                          <span className="text-right font-light text-gray-700 w-24">
+                            {formatCurrency(item.spent)}
+                          </span>
+                          <span className={`text-right font-medium w-16 ${
+                            item.percent > 100 ? 'text-orange-600' : 'text-gray-700'
+                          }`}>
+                            {item.percent}%
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+              {expenseLineItems.length === 0 && (
+                <div className="py-2 text-gray-500 text-sm">No expense line items configured. Add them in Settings.</div>
+              )}
+              <div className="flex justify-between items-center py-3 border-t-2 border-gray-200 mt-2">
+                <span className="font-medium text-[#3f3b39]">Total Expenses</span>
+                <div className="flex items-center gap-6">
+                  <span className="text-right font-medium text-[#3f3b39] w-24">
+                    {formatCurrency(totalExpensesBudgeted)}
+                  </span>
+                  <span className="text-right font-medium text-[#3f3b39] w-24">
+                    {formatCurrency(totalExpensesSpent)}
+                  </span>
+                  <span className="w-16"></span>
+                </div>
+              </div>
+        </div>
+      </div>
+
+          {/* Net Income */}
+          <div className="border-t-2 border-gray-300 pt-4">
+            <div className="flex justify-between items-center">
+              <span className="text-lg font-medium text-[#3f3b39]">Net Income</span>
+              <span className={`text-lg font-medium ${
+                netIncome >= 0 ? 'text-emerald-600' : 'text-red-600'
+              }`}>
+                {formatCurrency(netIncome)}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-

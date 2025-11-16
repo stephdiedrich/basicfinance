@@ -1,4 +1,4 @@
-import { FinancialData, Asset, Liability, Transaction, AssetClass, AssetView, LiabilityClass, LiabilityView } from '@/types';
+import { FinancialData, Asset, Liability, Transaction, AssetClass, AssetView, LiabilityClass, LiabilityView, BudgetItem, CashFlowLineItem, CashFlowGroup, CashFlowCategory } from '@/types';
 
 const STORAGE_KEY = 'financial-data';
 
@@ -18,6 +18,47 @@ const defaultLiabilityClasses: LiabilityClass[] = [
   { id: 'personal-loan', name: 'Personal Loan' },
 ];
 
+const defaultCashFlowGroups: CashFlowGroup[] = [
+  { id: 'group-home', name: 'Home', order: 0 },
+  { id: 'group-health', name: 'Health', order: 1 },
+  { id: 'group-transportation', name: 'Transportation', order: 2 },
+  { id: 'group-personal', name: 'Personal', order: 3 },
+];
+
+const defaultCashFlowCategories: CashFlowCategory[] = [
+  { id: 'cat-mortgage', name: 'Mortgage', order: 0 },
+  { id: 'cat-utilities', name: 'Utilities', order: 1 },
+  { id: 'cat-housekeeping', name: 'Housekeeping', order: 2 },
+  { id: 'cat-healthcare', name: 'Healthcare', order: 3 },
+  { id: 'cat-groceries', name: 'Groceries', order: 4 },
+  { id: 'cat-gym', name: 'Gym Membership', order: 5 },
+  { id: 'cat-car-payment', name: 'Car Payment', order: 6 },
+  { id: 'cat-insurance', name: 'Insurance', order: 7 },
+  { id: 'cat-gas', name: 'Gas', order: 8 },
+  { id: 'cat-dining', name: 'Food & Dining', order: 9 },
+  { id: 'cat-entertainment', name: 'Entertainment', order: 10 },
+  { id: 'cat-shopping', name: 'Shopping', order: 11 },
+];
+
+const defaultCashFlowLineItems: CashFlowLineItem[] = [
+  // Income items
+  { id: 'income-salary', name: 'Salary', type: 'income', order: 0 },
+  { id: 'income-freelance', name: 'Freelance', type: 'income', order: 1 },
+  // Expense groups and items
+  { id: 'exp-home-mortgage', name: 'Mortgage', type: 'expense', groupId: 'group-home', categoryId: 'cat-mortgage', order: 0 },
+  { id: 'exp-home-utilities', name: 'Utilities', type: 'expense', groupId: 'group-home', categoryId: 'cat-utilities', order: 1 },
+  { id: 'exp-home-housekeeping', name: 'Housekeeping', type: 'expense', groupId: 'group-home', categoryId: 'cat-housekeeping', order: 2 },
+  { id: 'exp-health-healthcare', name: 'Healthcare', type: 'expense', groupId: 'group-health', categoryId: 'cat-healthcare', order: 0 },
+  { id: 'exp-health-groceries', name: 'Groceries', type: 'expense', groupId: 'group-health', categoryId: 'cat-groceries', order: 1 },
+  { id: 'exp-health-gym', name: 'Gym Membership', type: 'expense', groupId: 'group-health', categoryId: 'cat-gym', order: 2 },
+  { id: 'exp-transport-car', name: 'Car Payment', type: 'expense', groupId: 'group-transportation', categoryId: 'cat-car-payment', order: 0 },
+  { id: 'exp-transport-insurance', name: 'Insurance', type: 'expense', groupId: 'group-transportation', categoryId: 'cat-insurance', order: 1 },
+  { id: 'exp-transport-gas', name: 'Gas', type: 'expense', groupId: 'group-transportation', categoryId: 'cat-gas', order: 2 },
+  { id: 'exp-personal-dining', name: 'Food & Dining', type: 'expense', groupId: 'group-personal', categoryId: 'cat-dining', order: 0 },
+  { id: 'exp-personal-entertainment', name: 'Entertainment', type: 'expense', groupId: 'group-personal', categoryId: 'cat-entertainment', order: 1 },
+  { id: 'exp-personal-shopping', name: 'Shopping', type: 'expense', groupId: 'group-personal', categoryId: 'cat-shopping', order: 2 },
+];
+
 const defaultData: FinancialData = {
   assets: [],
   liabilities: [],
@@ -26,6 +67,10 @@ const defaultData: FinancialData = {
   assetViews: [],
   liabilityClasses: defaultLiabilityClasses,
   liabilityViews: [],
+  budgets: [],
+  cashFlowLineItems: defaultCashFlowLineItems,
+  cashFlowGroups: defaultCashFlowGroups,
+  cashFlowCategories: defaultCashFlowCategories,
 };
 
 export function getFinancialData(): FinancialData {
@@ -36,7 +81,16 @@ export function getFinancialData(): FinancialData {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const data = JSON.parse(stored);
+      // Ensure all new properties exist for backward compatibility
+      return {
+        ...defaultData,
+        ...data,
+        cashFlowGroups: data.cashFlowGroups || defaultCashFlowGroups,
+        cashFlowCategories: data.cashFlowCategories || defaultCashFlowCategories,
+        cashFlowLineItems: data.cashFlowLineItems || defaultCashFlowLineItems,
+        budgets: data.budgets || [],
+      };
     }
   } catch (error) {
     console.error('Error reading from localStorage:', error);
@@ -435,6 +489,235 @@ export function reorderLiabilityViews(viewIds: string[]): void {
     }
   });
   data.liabilityViews = reordered;
+  saveFinancialData(data);
+}
+
+// Budget Functions
+export function getBudgets(year: number, month: number): BudgetItem[] {
+  const data = getFinancialData();
+  return (data.budgets || []).filter(b => b.year === year && b.month === month);
+}
+
+export function addBudget(budget: Omit<BudgetItem, 'id'>): BudgetItem {
+  const data = getFinancialData();
+  const newBudget: BudgetItem = {
+    ...budget,
+    id: crypto.randomUUID(),
+  };
+  if (!data.budgets) {
+    data.budgets = [];
+  }
+  data.budgets.push(newBudget);
+  saveFinancialData(data);
+  return newBudget;
+}
+
+export function updateBudget(id: string, updates: Partial<BudgetItem>): void {
+  const data = getFinancialData();
+  if (!data.budgets) return;
+  const index = data.budgets.findIndex(b => b.id === id);
+  if (index !== -1) {
+    data.budgets[index] = { ...data.budgets[index], ...updates };
+    saveFinancialData(data);
+  }
+}
+
+export function deleteBudget(id: string): void {
+  const data = getFinancialData();
+  if (data.budgets) {
+    data.budgets = data.budgets.filter(b => b.id !== id);
+    saveFinancialData(data);
+  }
+}
+
+// Cash Flow Line Items
+export function getCashFlowLineItems(): CashFlowLineItem[] {
+  const data = getFinancialData();
+  return data.cashFlowLineItems || defaultCashFlowLineItems;
+}
+
+export function addCashFlowLineItem(item: Omit<CashFlowLineItem, 'id'>): CashFlowLineItem {
+  const data = getFinancialData();
+  const newItem: CashFlowLineItem = {
+    ...item,
+    id: crypto.randomUUID(),
+  };
+  if (!data.cashFlowLineItems) {
+    data.cashFlowLineItems = [];
+  }
+  data.cashFlowLineItems.push(newItem);
+  saveFinancialData(data);
+  return newItem;
+}
+
+export function updateCashFlowLineItem(id: string, updates: Partial<CashFlowLineItem>): void {
+  const data = getFinancialData();
+  if (!data.cashFlowLineItems) return;
+  const index = data.cashFlowLineItems.findIndex(item => item.id === id);
+  if (index !== -1) {
+    data.cashFlowLineItems[index] = { ...data.cashFlowLineItems[index], ...updates };
+    saveFinancialData(data);
+  }
+}
+
+export function deleteCashFlowLineItem(id: string): void {
+  const data = getFinancialData();
+  if (data.cashFlowLineItems) {
+    data.cashFlowLineItems = data.cashFlowLineItems.filter(item => item.id !== id);
+    saveFinancialData(data);
+  }
+}
+
+export function reorderCashFlowLineItems(itemIds: string[]): void {
+  const data = getFinancialData();
+  if (!data.cashFlowLineItems) return;
+  const itemMap = new Map(data.cashFlowLineItems.map(item => [item.id, item]));
+  const reordered: CashFlowLineItem[] = [];
+  itemIds.forEach((id, index) => {
+    const item = itemMap.get(id);
+    if (item) {
+      reordered.push({ ...item, order: index });
+    }
+  });
+  // Add any items not in the reordered list
+  data.cashFlowLineItems.forEach(item => {
+    if (!itemIds.includes(item.id)) {
+      reordered.push(item);
+    }
+  });
+  data.cashFlowLineItems = reordered;
+  saveFinancialData(data);
+}
+
+// Cash Flow Groups
+export function getCashFlowGroups(): CashFlowGroup[] {
+  const data = getFinancialData();
+  return data.cashFlowGroups || defaultCashFlowGroups;
+}
+
+export function addCashFlowGroup(name: string): CashFlowGroup {
+  const data = getFinancialData();
+  const newGroup: CashFlowGroup = {
+    id: crypto.randomUUID(),
+    name: name,
+    order: (data.cashFlowGroups || defaultCashFlowGroups).length,
+  };
+  if (!data.cashFlowGroups) {
+    data.cashFlowGroups = [];
+  }
+  data.cashFlowGroups.push(newGroup);
+  saveFinancialData(data);
+  return newGroup;
+}
+
+export function updateCashFlowGroup(id: string, updates: Partial<CashFlowGroup>): void {
+  const data = getFinancialData();
+  if (!data.cashFlowGroups) return;
+  const index = data.cashFlowGroups.findIndex(g => g.id === id);
+  if (index !== -1) {
+    data.cashFlowGroups[index] = { ...data.cashFlowGroups[index], ...updates };
+    saveFinancialData(data);
+  }
+}
+
+export function deleteCashFlowGroup(id: string): void {
+  const data = getFinancialData();
+  if (data.cashFlowGroups) {
+    data.cashFlowGroups = data.cashFlowGroups.filter(g => g.id !== id);
+    // Also remove groupId from line items that use this group
+    if (data.cashFlowLineItems) {
+      data.cashFlowLineItems = data.cashFlowLineItems.map(item => 
+        item.groupId === id ? { ...item, groupId: undefined } : item
+      );
+    }
+    saveFinancialData(data);
+  }
+}
+
+export function reorderCashFlowGroups(groupIds: string[]): void {
+  const data = getFinancialData();
+  if (!data.cashFlowGroups) return;
+  const groupMap = new Map(data.cashFlowGroups.map(g => [g.id, g]));
+  const reordered: CashFlowGroup[] = [];
+  groupIds.forEach((id, index) => {
+    const group = groupMap.get(id);
+    if (group) {
+      reordered.push({ ...group, order: index });
+    }
+  });
+  // Add any groups not in the reordered list
+  data.cashFlowGroups.forEach(group => {
+    if (!groupIds.includes(group.id)) {
+      reordered.push(group);
+    }
+  });
+  data.cashFlowGroups = reordered;
+  saveFinancialData(data);
+}
+
+// Cash Flow Categories
+export function getCashFlowCategories(): CashFlowCategory[] {
+  const data = getFinancialData();
+  return data.cashFlowCategories || defaultCashFlowCategories;
+}
+
+export function addCashFlowCategory(name: string): CashFlowCategory {
+  const data = getFinancialData();
+  const newCategory: CashFlowCategory = {
+    id: crypto.randomUUID(),
+    name: name,
+    order: (data.cashFlowCategories || defaultCashFlowCategories).length,
+  };
+  if (!data.cashFlowCategories) {
+    data.cashFlowCategories = [];
+  }
+  data.cashFlowCategories.push(newCategory);
+  saveFinancialData(data);
+  return newCategory;
+}
+
+export function updateCashFlowCategory(id: string, updates: Partial<CashFlowCategory>): void {
+  const data = getFinancialData();
+  if (!data.cashFlowCategories) return;
+  const index = data.cashFlowCategories.findIndex(c => c.id === id);
+  if (index !== -1) {
+    data.cashFlowCategories[index] = { ...data.cashFlowCategories[index], ...updates };
+    saveFinancialData(data);
+  }
+}
+
+export function deleteCashFlowCategory(id: string): void {
+  const data = getFinancialData();
+  if (data.cashFlowCategories) {
+    data.cashFlowCategories = data.cashFlowCategories.filter(c => c.id !== id);
+    // Also remove categoryId from line items that use this category
+    if (data.cashFlowLineItems) {
+      data.cashFlowLineItems = data.cashFlowLineItems.map(item => 
+        item.categoryId === id ? { ...item, categoryId: undefined } : item
+      );
+    }
+    saveFinancialData(data);
+  }
+}
+
+export function reorderCashFlowCategories(categoryIds: string[]): void {
+  const data = getFinancialData();
+  if (!data.cashFlowCategories) return;
+  const categoryMap = new Map(data.cashFlowCategories.map(c => [c.id, c]));
+  const reordered: CashFlowCategory[] = [];
+  categoryIds.forEach((id, index) => {
+    const category = categoryMap.get(id);
+    if (category) {
+      reordered.push({ ...category, order: index });
+    }
+  });
+  // Add any categories not in the reordered list
+  data.cashFlowCategories.forEach(category => {
+    if (!categoryIds.includes(category.id)) {
+      reordered.push(category);
+    }
+  });
+  data.cashFlowCategories = reordered;
   saveFinancialData(data);
 }
 

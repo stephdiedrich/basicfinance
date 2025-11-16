@@ -74,6 +74,36 @@ export interface Transaction {
   date: string;
 }
 
+export interface BudgetItem {
+  id: string;
+  category: string;
+  subCategory?: string;
+  budgeted: number;
+  month: number; // 1-12
+  year: number;
+}
+
+export interface CashFlowGroup {
+  id: string;
+  name: string;
+  order: number;
+}
+
+export interface CashFlowCategory {
+  id: string;
+  name: string;
+  order: number;
+}
+
+export interface CashFlowLineItem {
+  id: string;
+  name: string;
+  type: 'income' | 'expense';
+  groupId?: string; // Reference to CashFlowGroup id
+  categoryId?: string; // Reference to CashFlowCategory id
+  order: number; // Order within the group or overall
+}
+
 export interface FinancialData {
   assets: Asset[];
   liabilities: Liability[];
@@ -82,5 +112,9 @@ export interface FinancialData {
   assetViews: AssetView[];
   liabilityClasses: LiabilityClass[];
   liabilityViews: LiabilityView[];
+  budgets: BudgetItem[];
+  cashFlowLineItems: CashFlowLineItem[];
+  cashFlowGroups: CashFlowGroup[];
+  cashFlowCategories: CashFlowCategory[];
 }
 
