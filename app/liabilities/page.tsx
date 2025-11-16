@@ -801,7 +801,7 @@ export default function LiabilitiesPage() {
                   placeholder="e.g., High Interest Debt, Credit Cards Only"
                 />
               </div>
-              <p className="text-sm text-gray-500">After creating the view, drag liabilities from "All" into this view to add them.</p>
+              <p className="text-sm text-gray-500">After creating the view, drag liabilities from &quot;All&quot; into this view to add them.</p>
               <div className="flex space-x-3 pt-2">
                 <button
                   type="submit"
@@ -865,7 +865,7 @@ export default function LiabilitiesPage() {
           <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
             <h2 className="text-2xl font-medium mb-4 text-black">Delete View</h2>
             <p className="text-gray-600 mb-6 font-light">
-              Are you sure you want to delete this view? This will not affect your liabilities - they will remain in the "All" view.
+              Are you sure you want to delete this view? This will not affect your liabilities - they will remain in the &quot;All&quot; view.
             </p>
             <div className="flex space-x-3">
               <button
