@@ -42,7 +42,7 @@ export default function Navigation() {
         {/* Header with Wordmark and Toggle */}
         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
           {isExpanded && (
-            <span className="font-medium text-lg text-[#3f3b39] tracking-tight">BasicFi</span>
+            <span className="font-medium text-lg text-black tracking-tight">BasicFi</span>
           )}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
@@ -73,7 +73,7 @@ export default function Navigation() {
                 className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group cursor-pointer ${
                   isActive
                     ? 'bg-[#3f3b39] text-white shadow-soft'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-[#3f3b39]'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-black'
                 }`}
                 title={!isExpanded ? item.label : undefined}
               >
@@ -101,7 +101,7 @@ export default function Navigation() {
             className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group cursor-pointer ${
               pathname === '/settings'
                 ? 'bg-[#3f3b39] text-white shadow-soft'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-[#3f3b39]'
+                : 'text-gray-600 hover:bg-gray-50 hover:text-black'
             }`}
             title={!isExpanded ? 'Settings' : undefined}
           >

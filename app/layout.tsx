@@ -20,7 +20,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="font-sans antialiased font-light" style={{ backgroundColor: '#fafafa', color: '#3f3b39' }}>
+      <body className="font-sans antialiased font-light" style={{ backgroundColor: '#fafafa', color: '#000000' }}>
         <div className="flex min-h-screen">
           <Navigation />
           <main className="flex-1">

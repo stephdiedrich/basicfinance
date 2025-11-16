@@ -264,14 +264,14 @@ export default function SettingsPage() {
   return (
     <div className="w-full pr-8 lg:pr-16 py-10" style={{ paddingLeft: 'calc(280px + 2rem)' }}>
       <div className="mb-10">
-        <h1 className="text-4xl font-medium mb-2 text-[#3f3b39] tracking-tight">Settings</h1>
+        <h1 className="text-4xl font-medium mb-2 text-black tracking-tight">Settings</h1>
         <p className="text-gray-500 text-[15px] font-light">Manage your income and expense line items</p>
       </div>
 
       {/* Income Section */}
       <div className="bg-white rounded-2xl shadow-card p-8 mb-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-medium text-[#3f3b39]">Income</h2>
+          <h2 className="text-2xl font-medium text-black">Income</h2>
           <div className="flex items-center gap-4">
             <button
               onClick={() => {
@@ -279,7 +279,7 @@ export default function SettingsPage() {
                 setEditingGroup(null);
                 setIsGroupFormOpen(true);
               }}
-              className="text-gray-500 hover:text-[#3f3b39] transition-colors font-light text-sm cursor-pointer"
+              className="text-gray-500 hover:text-black transition-colors font-light text-sm cursor-pointer"
             >
               +New Group
             </button>
@@ -289,7 +289,7 @@ export default function SettingsPage() {
                 setEditingItem(null);
                 setIsFormOpen(true);
               }}
-              className="text-gray-500 hover:text-[#3f3b39] transition-colors font-light text-sm cursor-pointer"
+              className="text-gray-500 hover:text-black transition-colors font-light text-sm cursor-pointer"
             >
               +New Line Item
             </button>
@@ -319,12 +319,12 @@ export default function SettingsPage() {
                         setEditingGroupNameId(null);
                       }
                     }}
-                    className="text-lg font-medium text-[#3f3b39] mb-4 bg-transparent border-b-2 border-[#3f3b39] focus:outline-none px-1"
+                    className="text-lg font-medium text-black mb-4 bg-transparent border-b-2 border-[#3f3b39] focus:outline-none px-1"
                     autoFocus
                   />
                 ) : (
                   <h3 
-                    className="text-lg font-medium text-[#3f3b39] mb-4 cursor-pointer hover:text-[#4d4845] transition-colors"
+                    className="text-lg font-medium text-black mb-4 cursor-pointer hover:text-gray-700 transition-colors"
                     onClick={() => {
                       setEditingGroupNameId(group.id);
                       setEditingGroupNameValue(group.name);
@@ -354,12 +354,12 @@ export default function SettingsPage() {
                             <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
                             <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
                           </div>
-                          <span className="font-medium text-[#3f3b39]">{item.name}</span>
+                          <span className="font-medium text-black">{item.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleEdit(item)}
-                            className="text-gray-400 hover:text-[#3f3b39] p-1.5 rounded-lg hover:bg-gray-200 cursor-pointer"
+                            className="text-gray-400 hover:text-black p-1.5 rounded-lg hover:bg-gray-200 cursor-pointer"
                             title="Edit"
                           >
                             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -405,12 +405,12 @@ export default function SettingsPage() {
                         <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
                         <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
                       </div>
-                      <span className="font-medium text-[#3f3b39]">{item.name}</span>
+                      <span className="font-medium text-black">{item.name}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => handleEdit(item)}
-                        className="text-gray-400 hover:text-[#3f3b39] p-1.5 rounded-lg hover:bg-gray-200 cursor-pointer"
+                        className="text-gray-400 hover:text-black p-1.5 rounded-lg hover:bg-gray-200 cursor-pointer"
                         title="Edit"
                       >
                         <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -441,7 +441,7 @@ export default function SettingsPage() {
       {/* Expense Section */}
       <div className="bg-white rounded-2xl shadow-card p-8">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-medium text-[#3f3b39]">Expenses</h2>
+          <h2 className="text-2xl font-medium text-black">Expenses</h2>
           <div className="flex items-center gap-4">
             <button
               onClick={() => {
@@ -449,7 +449,7 @@ export default function SettingsPage() {
                 setEditingGroup(null);
                 setIsGroupFormOpen(true);
               }}
-              className="text-gray-500 hover:text-[#3f3b39] transition-colors font-light text-sm cursor-pointer"
+              className="text-gray-500 hover:text-black transition-colors font-light text-sm cursor-pointer"
             >
               +New Group
             </button>
@@ -459,7 +459,7 @@ export default function SettingsPage() {
                 setEditingItem(null);
                 setIsFormOpen(true);
               }}
-              className="text-gray-500 hover:text-[#3f3b39] transition-colors font-light text-sm cursor-pointer"
+              className="text-gray-500 hover:text-black transition-colors font-light text-sm cursor-pointer"
             >
               +New Line Item
             </button>
@@ -490,12 +490,12 @@ export default function SettingsPage() {
                         setEditingGroupNameId(null);
                       }
                     }}
-                    className="text-lg font-medium text-[#3f3b39] mb-4 bg-transparent border-b-2 border-[#3f3b39] focus:outline-none px-1"
+                    className="text-lg font-medium text-black mb-4 bg-transparent border-b-2 border-[#3f3b39] focus:outline-none px-1"
                     autoFocus
                   />
                 ) : (
                   <h3 
-                    className="text-lg font-medium text-[#3f3b39] mb-4 cursor-pointer hover:text-[#4d4845] transition-colors"
+                    className="text-lg font-medium text-black mb-4 cursor-pointer hover:text-gray-700 transition-colors"
                     onClick={() => {
                       setEditingGroupNameId(group.id);
                       setEditingGroupNameValue(group.name);
@@ -525,12 +525,12 @@ export default function SettingsPage() {
                             <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
                             <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
                           </div>
-                          <span className="font-medium text-[#3f3b39]">{item.name}</span>
+                          <span className="font-medium text-black">{item.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleEdit(item)}
-                            className="text-gray-400 hover:text-[#3f3b39] p-1.5 rounded-lg hover:bg-gray-200 cursor-pointer"
+                            className="text-gray-400 hover:text-black p-1.5 rounded-lg hover:bg-gray-200 cursor-pointer"
                             title="Edit"
                           >
                             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -556,7 +556,7 @@ export default function SettingsPage() {
           })}
           {expenseItems.filter(item => !item.groupId).length > 0 && (
             <div className="border-b border-gray-200 pb-6">
-              <h3 className="text-lg font-medium text-[#3f3b39] mb-4">Ungrouped</h3>
+              <h3 className="text-lg font-medium text-black mb-4">Ungrouped</h3>
               <div className="space-y-2">
                 {expenseItems.filter(item => !item.groupId).map((item, index) => {
                   const actualIndex = lineItems.findIndex(i => i.id === item.id);
@@ -578,12 +578,12 @@ export default function SettingsPage() {
                           <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
                           <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
                         </div>
-                        <span className="font-medium text-[#3f3b39]">{item.name}</span>
+                        <span className="font-medium text-black">{item.name}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleEdit(item)}
-                          className="text-gray-400 hover:text-[#3f3b39] p-1.5 rounded-lg hover:bg-gray-200 cursor-pointer"
+                          className="text-gray-400 hover:text-black p-1.5 rounded-lg hover:bg-gray-200 cursor-pointer"
                           title="Edit"
                         >
                           <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -616,7 +616,7 @@ export default function SettingsPage() {
       {isFormOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
-            <h2 className="text-2xl font-medium mb-6 text-[#3f3b39]">
+            <h2 className="text-2xl font-medium mb-6 text-black">
               {editingItem ? 'Edit Line Item' : 'Add Line Item'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -706,7 +706,7 @@ export default function SettingsPage() {
       {isGroupFormOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
-            <h2 className="text-2xl font-medium mb-6 text-[#3f3b39]">
+            <h2 className="text-2xl font-medium mb-6 text-black">
               {editingGroup ? 'Edit Group' : 'Add Group'}
             </h2>
             <form onSubmit={handleGroupSubmit} className="space-y-5">
@@ -750,7 +750,7 @@ export default function SettingsPage() {
       {isCategoryFormOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
-            <h2 className="text-2xl font-medium mb-6 text-[#3f3b39]">
+            <h2 className="text-2xl font-medium mb-6 text-black">
               {editingCategory ? 'Edit Category' : 'Add Category'}
             </h2>
             <form onSubmit={handleCategorySubmit} className="space-y-5">

@@ -307,7 +307,7 @@ export default function LiabilitiesPage() {
   return (
     <div className="w-full pr-8 lg:pr-16 py-10" style={{ paddingLeft: 'calc(280px + 2rem)' }}>
       <div className="mb-10">
-        <h1 className="text-4xl font-medium mb-2 text-[#3f3b39] tracking-tight">Liabilities</h1>
+        <h1 className="text-4xl font-medium mb-2 text-black tracking-tight">Liabilities</h1>
         <p className="text-gray-500 text-[15px] font-light">Manage your debts and loans</p>
       </div>
 
@@ -346,8 +346,8 @@ export default function LiabilitiesPage() {
                 onClick={() => setSelectedCategory(category)}
                 className={`px-4 py-2 rounded-lg transition-all whitespace-nowrap text-sm font-medium cursor-pointer ${
                   selectedCategory === category
-                    ? 'bg-white text-[#3f3b39] shadow-soft'
-                    : 'text-gray-600 hover:text-[#3f3b39]'
+                    ? 'bg-white text-black shadow-soft'
+                    : 'text-gray-600 hover:text-black'
                 } ${isDragging ? 'opacity-50' : ''}`}
               >
                 {label} <span className="text-gray-500 font-normal">({formatCurrency(total)})</span>
@@ -358,7 +358,7 @@ export default function LiabilitiesPage() {
                     e.stopPropagation();
                     handleEditClass(liabilityClass);
                   }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-[#3f3b39] cursor-pointer"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-gray-200 text-gray-400 hover:text-black cursor-pointer"
                   title="Edit category name"
                 >
                   <svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -371,7 +371,7 @@ export default function LiabilitiesPage() {
         })}
         <button
           onClick={() => setIsViewFormOpen(true)}
-          className="px-4 py-2 rounded-lg transition-all whitespace-nowrap text-sm font-medium text-gray-600 hover:text-[#3f3b39] hover:bg-white cursor-pointer"
+          className="px-4 py-2 rounded-lg transition-all whitespace-nowrap text-sm font-medium text-gray-600 hover:text-black hover:bg-white cursor-pointer"
         >
           + View
         </button>
@@ -397,7 +397,7 @@ export default function LiabilitiesPage() {
                   <p className="mb-2">No liabilities yet.</p>
                   <button
                     onClick={() => setIsFormOpen(true)}
-                    className="text-sm font-medium text-[#3f3b39] hover:text-gray-700 transition-colors cursor-pointer"
+                    className="text-sm font-medium text-black hover:text-gray-700 transition-colors cursor-pointer"
                   >
                     Add your first liability →
                   </button>
@@ -417,14 +417,14 @@ export default function LiabilitiesPage() {
                   }`}
                 >
                   <td className="px-8 py-4">
-                    <span className="font-medium text-[#3f3b39]">
+                    <span className="font-medium text-black">
                       {liability.name}
                     </span>
                   </td>
                   <td className="px-8 py-4 text-gray-600 font-light">
                     {liabilityClasses.find(lc => lc.id === liability.type)?.name || liability.type}
                   </td>
-                  <td className="px-8 py-4 font-medium text-[#3f3b39]">
+                  <td className="px-8 py-4 font-medium text-black">
                     {formatCurrency(liability.amount)}
                   </td>
                   <td className="px-8 py-4 text-gray-500">
@@ -433,7 +433,7 @@ export default function LiabilitiesPage() {
                   <td className="px-8 py-4">
                     <button
                       onClick={() => handleEdit(liability)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-[#3f3b39] p-1.5 rounded-lg hover:bg-gray-200 cursor-pointer"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-black p-1.5 rounded-lg hover:bg-gray-200 cursor-pointer"
                       title="Edit liability"
                     >
                       <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -455,8 +455,8 @@ export default function LiabilitiesPage() {
             )}
             {filteredLiabilities.length > 0 && (
               <tr className="bg-gray-50/50 border-t-2 border-gray-200">
-                <td colSpan={2} className="px-8 py-4 font-medium text-[#3f3b39]">Total</td>
-                <td className="px-8 py-4 font-medium text-[#3f3b39]">
+                <td colSpan={2} className="px-8 py-4 font-medium text-black">Total</td>
+                <td className="px-8 py-4 font-medium text-black">
                   {formatCurrency(getCategoryTotal(selectedCategory))}
                 </td>
                 <td className="px-8 py-4"></td>
@@ -471,7 +471,7 @@ export default function LiabilitiesPage() {
       <div className="mt-6">
         <button
           onClick={() => setIsFormOpen(true)}
-          className="text-gray-500 hover:text-[#3f3b39] transition-colors font-light text-sm cursor-pointer"
+          className="text-gray-500 hover:text-black transition-colors font-light text-sm cursor-pointer"
         >
           + Add
         </button>
@@ -481,7 +481,7 @@ export default function LiabilitiesPage() {
       {isFormOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
-            <h2 className="text-2xl font-medium mb-6 text-[#3f3b39]">
+            <h2 className="text-2xl font-medium mb-6 text-black">
               {editingLiability ? 'Edit Liability' : 'Add New Liability'}
             </h2>
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -588,7 +588,7 @@ export default function LiabilitiesPage() {
       {isViewFormOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
-            <h2 className="text-2xl font-medium mb-6 text-[#3f3b39]">Create Custom View</h2>
+            <h2 className="text-2xl font-medium mb-6 text-black">Create Custom View</h2>
             <form onSubmit={handleViewSubmit} className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">View Name</label>
@@ -654,7 +654,7 @@ export default function LiabilitiesPage() {
       {isNewClassFormOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
-            <h2 className="text-2xl font-medium mb-6 text-[#3f3b39]">Add New Category</h2>
+            <h2 className="text-2xl font-medium mb-6 text-black">Add New Category</h2>
             <form onSubmit={handleNewClassSubmit} className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Category Name</label>
@@ -691,7 +691,7 @@ export default function LiabilitiesPage() {
       {isEditClassFormOpen && editingLiabilityClass && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
-            <h2 className="text-2xl font-medium mb-6 text-[#3f3b39]">Edit Category</h2>
+            <h2 className="text-2xl font-medium mb-6 text-black">Edit Category</h2>
             <form onSubmit={handleEditClassSubmit} className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Category Name</label>

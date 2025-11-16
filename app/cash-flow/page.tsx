@@ -33,6 +33,7 @@ export default function CashFlowPage() {
   const [lineItems, setLineItems] = useState<CashFlowLineItem[]>([]);
   const [groups, setGroups] = useState<CashFlowGroup[]>([]);
   const [categories, setCategories] = useState<CashFlowCategory[]>([]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadData();
@@ -245,10 +246,22 @@ export default function CashFlowPage() {
     }
   };
 
+  const toggleGroup = (groupId: string) => {
+    setCollapsedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(groupId)) {
+        newSet.delete(groupId);
+      } else {
+        newSet.add(groupId);
+      }
+      return newSet;
+    });
+  };
+
   return (
     <div className="w-full pr-8 lg:pr-16 py-10" style={{ paddingLeft: 'calc(280px + 2rem)' }}>
       <div className="mb-10">
-        <h1 className="text-4xl font-medium mb-2 text-[#3f3b39] tracking-tight">Cash Flow</h1>
+        <h1 className="text-4xl font-medium mb-2 text-black tracking-tight">Cash Flow</h1>
         <p className="text-gray-500 text-[15px] font-light">Monthly income, expenses, and net income overview</p>
         </div>
 
@@ -309,8 +322,8 @@ export default function CashFlowPage() {
             onClick={() => setViewMode('month')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
               viewMode === 'month'
-                ? 'bg-white text-[#3f3b39] shadow-soft'
-                : 'text-gray-600 hover:text-[#3f3b39]'
+                ? 'bg-white text-black shadow-soft'
+                : 'text-gray-600 hover:text-black'
             }`}
           >
             Month
@@ -319,8 +332,8 @@ export default function CashFlowPage() {
             onClick={() => setViewMode('year')}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
               viewMode === 'year'
-                ? 'bg-white text-[#3f3b39] shadow-soft'
-                : 'text-gray-600 hover:text-[#3f3b39]'
+                ? 'bg-white text-black shadow-soft'
+                : 'text-gray-600 hover:text-black'
             }`}
           >
             Year
@@ -333,38 +346,61 @@ export default function CashFlowPage() {
         <div className="p-8">
           {/* Income Section */}
           <div className="mb-8">
-            <h2 className="text-2xl font-medium mb-6 text-[#3f3b39]">Income</h2>
-            <div className="space-y-6">
+            <h2 className="text-2xl font-medium mb-6 text-black">Income</h2>
+            <div className="space-y-1">
               {/* Income items grouped by groups */}
               {(groups || []).filter(group => incomeLineItems.some(item => item.groupId === group.id)).map((group) => {
                 const groupItems = incomeLineItems.filter(item => item.groupId === group.id);
                 const groupTotal = groupItems.reduce((sum, item) => sum + (incomeItemsMap.get(item.id) || 0), 0);
+                const isCollapsed = collapsedGroups.has(group.id);
+                
                 return (
-                  <div key={group.id} className="border-b border-gray-200 pb-6 last:border-b-0 last:pb-0">
-                    <h3 className="text-lg font-medium text-[#3f3b39] mb-4">{group.name}</h3>
-                    <div className="space-y-2">
-                      {groupItems.map((item) => {
-                        const amount = incomeItemsMap.get(item.id) || 0;
-                        return (
-                          <div key={item.id} className="flex justify-between items-center py-2">
-                            <span className="text-gray-700 font-light">{item.name}</span>
-                            <span className="font-medium text-[#3f3b39]">{formatCurrency(amount)}</span>
-                          </div>
-                        );
-                      })}
+                  <div key={group.id} className="border-b border-gray-200 last:border-b-0">
+                    {/* Group header with subtotal */}
+                    <div 
+                      className="flex justify-between items-center py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => toggleGroup(group.id)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <svg 
+                          width="16" 
+                          height="16" 
+                          viewBox="0 0 16 16" 
+                          fill="none" 
+                          className={`transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
+                        >
+                          <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        <span className="font-medium text-black">{group.name}</span>
+                      </div>
+                      <span className="font-medium text-black">{formatCurrency(groupTotal)}</span>
                     </div>
+                    {/* Line items (indented) */}
+                    {!isCollapsed && (
+                      <div className="space-y-1 pb-2">
+                        {groupItems.map((item) => {
+                          const amount = incomeItemsMap.get(item.id) || 0;
+                          return (
+                            <div key={item.id} className="flex justify-between items-center py-2 pl-8">
+                              <span className="text-gray-700 font-light">{item.name}</span>
+                              <span className="font-medium text-black">{formatCurrency(amount)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })}
               {/* Ungrouped income items */}
               {incomeLineItems.filter(item => !item.groupId).length > 0 && (
-                <div className="space-y-2">
+                <div className="space-y-1 border-b border-gray-200 pb-2">
                   {incomeLineItems.filter(item => !item.groupId).map((item) => {
                     const amount = incomeItemsMap.get(item.id) || 0;
                     return (
                       <div key={item.id} className="flex justify-between items-center py-2">
                         <span className="text-gray-700 font-light">{item.name}</span>
-                        <span className="font-medium text-[#3f3b39]">{formatCurrency(amount)}</span>
+                        <span className="font-medium text-black">{formatCurrency(amount)}</span>
                       </div>
                     );
                   })}
@@ -374,8 +410,8 @@ export default function CashFlowPage() {
                 <div className="py-2 text-gray-500 text-sm">No income line items configured. Add them in Settings.</div>
               )}
               <div className="flex justify-between items-center py-3 border-t-2 border-gray-200 mt-2">
-                <span className="font-medium text-[#3f3b39]">Total Income</span>
-                <span className="font-medium text-[#3f3b39]">{formatCurrency(totalIncome)}</span>
+                <span className="font-medium text-black">Total Income</span>
+                <span className="font-medium text-black">{formatCurrency(totalIncome)}</span>
               </div>
             </div>
         </div>
@@ -383,27 +419,112 @@ export default function CashFlowPage() {
           {/* Expenses Section */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-medium text-[#3f3b39]">Expenses</h2>
+              <h2 className="text-2xl font-medium text-black">Expenses</h2>
               <div className="flex items-center gap-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
                 <span className="w-24 text-right">Budgeted</span>
                 <span className="w-24 text-right">Spent</span>
                 <span className="w-16 text-right">% Budget</span>
               </div>
             </div>
-            <div className="space-y-6">
+            <div className="space-y-1">
               {/* Expense groups matching settings structure */}
               {(groups || []).map((group) => {
                 const groupExpenseData = expenseGroups.find(g => g.name === group.name);
                 if (!groupExpenseData || groupExpenseData.items.length === 0) return null;
                 
+                const isCollapsed = collapsedGroups.has(group.id);
+                
                 return (
-                  <div key={group.id} className="border-b border-gray-200 pb-6 last:border-b-0 last:pb-0">
-                    <h3 className="text-lg font-medium text-[#3f3b39] mb-4">{group.name}</h3>
-                    <div className="space-y-2">
-                      {groupExpenseData.items.map((item, itemIndex) => (
+                  <div key={group.id} className="border-b border-gray-200 last:border-b-0">
+                    {/* Group header with subtotal */}
+                    <div 
+                      className="flex justify-between items-center py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                      onClick={() => toggleGroup(group.id)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <svg 
+                          width="16" 
+                          height="16" 
+                          viewBox="0 0 16 16" 
+                          fill="none" 
+                          className={`transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
+                        >
+                          <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                        <span className="font-medium text-black">{group.name}</span>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <span className="text-right font-medium text-black w-24">
+                          {formatCurrency(groupExpenseData.totalBudgeted)}
+                        </span>
+                        <span className="text-right font-medium text-black w-24">
+                          {formatCurrency(groupExpenseData.totalSpent)}
+                        </span>
+                        <span className={`text-right font-medium w-16 ${
+                          groupExpenseData.totalPercent > 100 ? 'text-orange-600' : 'text-black'
+                        }`}>
+                          {groupExpenseData.totalPercent}%
+                        </span>
+                      </div>
+                    </div>
+                    {/* Line items (indented) */}
+                    {!isCollapsed && (
+                      <div className="space-y-1 pb-2">
+                        {groupExpenseData.items.map((item, itemIndex) => (
+                          <div
+                            key={itemIndex}
+                            className={`flex justify-between items-center py-2 pl-8 ${
+                              item.percent > 100 ? 'bg-orange-50 rounded-lg px-3' : ''
+                            }`}
+                          >
+                            <span className="text-gray-700 font-light">{item.name}</span>
+                            <div className="flex items-center gap-6">
+                              <span className="text-right font-light text-gray-700 w-24">
+                                {formatCurrency(item.budgeted)}
+                              </span>
+                              <span className="text-right font-light text-gray-700 w-24">
+                                {formatCurrency(item.spent)}
+                              </span>
+                              <span className={`text-right font-medium w-16 ${
+                                item.percent > 100 ? 'text-orange-600' : 'text-gray-700'
+                              }`}>
+                                {item.percent}%
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {/* Ungrouped expenses */}
+              {expenseGroups.find(g => g.name === 'Ungrouped') && (() => {
+                const ungrouped = expenseGroups.find(g => g.name === 'Ungrouped')!;
+                if (ungrouped.items.length === 0) return null;
+                return (
+                  <div className="border-b border-gray-200 last:border-b-0">
+                    <div className="flex justify-between items-center py-3">
+                      <span className="font-medium text-black">Ungrouped</span>
+                      <div className="flex items-center gap-6">
+                        <span className="text-right font-medium text-black w-24">
+                          {formatCurrency(ungrouped.totalBudgeted)}
+                        </span>
+                        <span className="text-right font-medium text-black w-24">
+                          {formatCurrency(ungrouped.totalSpent)}
+                        </span>
+                        <span className={`text-right font-medium w-16 ${
+                          ungrouped.totalPercent > 100 ? 'text-orange-600' : 'text-black'
+                        }`}>
+                          {ungrouped.totalPercent}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-1 pb-2">
+                      {ungrouped.items.map((item, itemIndex) => (
                         <div
                           key={itemIndex}
-                          className={`flex justify-between items-center py-2 ${
+                          className={`flex justify-between items-center py-2 pl-8 ${
                             item.percent > 100 ? 'bg-orange-50 rounded-lg px-3' : ''
                           }`}
                         >
@@ -423,55 +544,7 @@ export default function CashFlowPage() {
                           </div>
                         </div>
                       ))}
-                      <div className="flex justify-between items-center py-2 border-t border-gray-200 mt-2 pt-2">
-                        <span className="font-medium text-[#3f3b39]">{group.name}</span>
-                        <div className="flex items-center gap-6">
-                          <span className="text-right font-medium text-[#3f3b39] w-24">
-                            {formatCurrency(groupExpenseData.totalBudgeted)}
-                          </span>
-                          <span className="text-right font-medium text-[#3f3b39] w-24">
-                            {formatCurrency(groupExpenseData.totalSpent)}
-                          </span>
-                          <span className={`text-right font-medium w-16 ${
-                            groupExpenseData.totalPercent > 100 ? 'text-orange-600' : 'text-[#3f3b39]'
-                          }`}>
-                            {groupExpenseData.totalPercent}%
-                          </span>
-                        </div>
-                      </div>
                     </div>
-                  </div>
-                );
-              })}
-              {/* Ungrouped expenses */}
-              {expenseGroups.find(g => g.name === 'Ungrouped') && (() => {
-                const ungrouped = expenseGroups.find(g => g.name === 'Ungrouped')!;
-                if (ungrouped.items.length === 0) return null;
-                return (
-                  <div className="space-y-2">
-                    {ungrouped.items.map((item, itemIndex) => (
-                      <div
-                        key={itemIndex}
-                        className={`flex justify-between items-center py-2 ${
-                          item.percent > 100 ? 'bg-orange-50 rounded-lg px-3' : ''
-                        }`}
-                      >
-                        <span className="text-gray-700 font-light">{item.name}</span>
-                        <div className="flex items-center gap-6">
-                          <span className="text-right font-light text-gray-700 w-24">
-                            {formatCurrency(item.budgeted)}
-                          </span>
-                          <span className="text-right font-light text-gray-700 w-24">
-                            {formatCurrency(item.spent)}
-                          </span>
-                          <span className={`text-right font-medium w-16 ${
-                            item.percent > 100 ? 'text-orange-600' : 'text-gray-700'
-                          }`}>
-                            {item.percent}%
-                          </span>
-                        </div>
-                      </div>
-                    ))}
                   </div>
                 );
               })()}
@@ -479,12 +552,12 @@ export default function CashFlowPage() {
                 <div className="py-2 text-gray-500 text-sm">No expense line items configured. Add them in Settings.</div>
               )}
               <div className="flex justify-between items-center py-3 border-t-2 border-gray-200 mt-2">
-                <span className="font-medium text-[#3f3b39]">Total Expenses</span>
+                <span className="font-medium text-black">Total Expenses</span>
                 <div className="flex items-center gap-6">
-                  <span className="text-right font-medium text-[#3f3b39] w-24">
+                  <span className="text-right font-medium text-black w-24">
                     {formatCurrency(totalExpensesBudgeted)}
                   </span>
-                  <span className="text-right font-medium text-[#3f3b39] w-24">
+                  <span className="text-right font-medium text-black w-24">
                     {formatCurrency(totalExpensesSpent)}
                   </span>
                   <span className="w-16"></span>
@@ -496,7 +569,7 @@ export default function CashFlowPage() {
           {/* Net Income */}
           <div className="border-t-2 border-gray-300 pt-4">
             <div className="flex justify-between items-center">
-              <span className="text-lg font-medium text-[#3f3b39]">Net Income</span>
+              <span className="text-lg font-medium text-black">Net Income</span>
               <span className={`text-lg font-medium ${
                 netIncome >= 0 ? 'text-emerald-600' : 'text-red-600'
               }`}>

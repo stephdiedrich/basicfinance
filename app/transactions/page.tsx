@@ -112,7 +112,7 @@ export default function TransactionsPage() {
     <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 py-10" style={{ paddingLeft: 'calc(280px + 1.5rem)' }}>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-4xl font-medium mb-2 text-[#3f3b39] tracking-tight">Transactions</h1>
+          <h1 className="text-4xl font-medium mb-2 text-black tracking-tight">Transactions</h1>
           <p className="text-gray-500 text-[15px] font-light">Track your income and expenses</p>
         </div>
         <button
@@ -136,7 +136,7 @@ export default function TransactionsPage() {
 
       {isFormOpen && (
         <div className="mb-8 bg-white rounded-2xl p-8 shadow-card">
-          <h2 className="text-2xl font-medium mb-6 text-[#3f3b39]">
+          <h2 className="text-2xl font-medium mb-6 text-black">
             {editingTransaction ? 'Edit Transaction' : 'Add New Transaction'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -225,7 +225,7 @@ export default function TransactionsPage() {
             <p className="mb-2">No transactions yet.</p>
             <button
               onClick={() => setIsFormOpen(true)}
-              className="text-sm font-medium text-[#3f3b39] hover:text-gray-700 transition-colors"
+              className="text-sm font-medium text-black hover:text-gray-700 transition-colors"
             >
               Add your first transaction →
             </button>
@@ -237,7 +237,7 @@ export default function TransactionsPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
-                      <h3 className="text-lg font-medium text-[#3f3b39]">{transaction.description}</h3>
+                      <h3 className="text-lg font-medium text-black">{transaction.description}</h3>
                       <span className={`px-2.5 py-1 text-xs font-medium rounded-lg ${
                         transaction.type === 'income' 
                           ? 'bg-emerald-100 text-emerald-700' 
