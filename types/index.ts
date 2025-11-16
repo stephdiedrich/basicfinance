@@ -25,6 +25,7 @@ export interface AssetClass {
   name: string;
   color?: string;
   order?: number;
+  isLiquid?: boolean;
 }
 
 export type LiabilityType = string; // Dynamic - can be any string

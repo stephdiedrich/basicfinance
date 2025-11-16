@@ -3,11 +3,11 @@ import { FinancialData, Asset, Liability, Transaction, AssetClass, AssetView, Li
 const STORAGE_KEY = 'financial-data';
 
 const defaultAssetClasses: AssetClass[] = [
-  { id: 'cash', name: 'Cash' },
-  { id: 'equities', name: 'Equities' },
-  { id: 'personal-property', name: 'Personal Property' },
-  { id: 'real-estate', name: 'Real Estate' },
-  { id: 'retirement', name: 'Retirement' },
+  { id: 'cash', name: 'Cash', isLiquid: true },
+  { id: 'equities', name: 'Equities', isLiquid: false },
+  { id: 'personal-property', name: 'Personal Property', isLiquid: false },
+  { id: 'real-estate', name: 'Real Estate', isLiquid: false },
+  { id: 'retirement', name: 'Retirement', isLiquid: false },
 ];
 
 const defaultLiabilityClasses: LiabilityClass[] = [
