@@ -8,7 +8,10 @@ import {
 } from '@/lib/storage';
 import { CashFlowLineItem, CashFlowGroup, CashFlowCategory } from '@/types';
 
+type SettingsTab = 'institutions' | 'categories' | 'preferences';
+
 export default function SettingsPage() {
+  const [selectedTab, setSelectedTab] = useState<SettingsTab>('categories');
   const [lineItems, setLineItems] = useState<CashFlowLineItem[]>([]);
   const [groups, setGroups] = useState<CashFlowGroup[]>([]);
   const [categories, setCategories] = useState<CashFlowCategory[]>([]);
@@ -265,10 +268,67 @@ export default function SettingsPage() {
     <div className="w-full pr-8 lg:pr-16 py-10" style={{ paddingLeft: 'calc(280px + 2rem)' }}>
       <div className="mb-10">
         <h1 className="text-4xl font-medium mb-2 text-black tracking-tight">Settings</h1>
-        <p className="text-gray-500 text-[15px] font-light">Manage your income and expense line items</p>
+        <p className="text-gray-500 text-[15px] font-light">Manage your app preferences and configurations</p>
       </div>
 
-      {/* Income Section */}
+      {/* Tab Navigation */}
+      <div className="mb-8">
+        <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl">
+          <button
+            onClick={() => setSelectedTab('institutions')}
+            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+              selectedTab === 'institutions'
+                ? 'bg-white text-black shadow-soft'
+                : 'text-gray-600 hover:text-black'
+            }`}
+          >
+            Institutions
+          </button>
+          <button
+            onClick={() => setSelectedTab('categories')}
+            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+              selectedTab === 'categories'
+                ? 'bg-white text-black shadow-soft'
+                : 'text-gray-600 hover:text-black'
+            }`}
+          >
+            Categories
+          </button>
+          <button
+            onClick={() => setSelectedTab('preferences')}
+            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+              selectedTab === 'preferences'
+                ? 'bg-white text-black shadow-soft'
+                : 'text-gray-600 hover:text-black'
+            }`}
+          >
+            Preferences
+          </button>
+        </div>
+      </div>
+
+      {/* Institutions Tab */}
+      {selectedTab === 'institutions' && (
+        <div className="bg-white rounded-2xl shadow-card p-8">
+          <h2 className="text-2xl font-medium mb-2 text-black">Institutions</h2>
+          <p className="text-gray-500 text-[15px] font-light mb-8">Connect your bank accounts and financial institutions</p>
+          <div className="text-center py-16">
+            <div className="text-gray-400 mb-4">
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mx-auto">
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <p className="text-gray-500 font-light">Institution linking coming soon</p>
+          </div>
+        </div>
+      )}
+
+      {/* Categories Tab */}
+      {selectedTab === 'categories' && (
+        <>
+          {/* Income Section */}
       <div className="bg-white rounded-2xl shadow-card p-8 mb-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-medium text-black">Income</h2>
@@ -611,6 +671,8 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+        </>
+      )}
 
       {/* Line Item Form Modal */}
       {isFormOpen && (
@@ -786,6 +848,82 @@ export default function SettingsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Preferences Tab */}
+      {selectedTab === 'preferences' && (
+        <div className="bg-white rounded-2xl shadow-card p-8">
+          <h2 className="text-2xl font-medium mb-2 text-black">Preferences</h2>
+          <p className="text-gray-500 text-[15px] font-light mb-8">Customize your app settings</p>
+          
+          <div className="space-y-8">
+            {/* Currency Preference */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
+              <select
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all cursor-pointer"
+                disabled
+              >
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-2 font-light">Currency preference coming soon</p>
+            </div>
+
+            {/* Date Format Preference */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Date Format</label>
+              <select
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all cursor-pointer"
+                disabled
+              >
+                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-2 font-light">Date format preference coming soon</p>
+            </div>
+
+            {/* Theme Preference */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Theme</label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="theme"
+                    value="auto"
+                    className="w-4 h-4 text-[#3f3b39] border-gray-300 focus:ring-[#3f3b39] cursor-pointer"
+                    disabled
+                  />
+                  <span className="text-gray-700 font-light">Auto</span>
+                </label>
+                <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="theme"
+                    value="light"
+                    className="w-4 h-4 text-[#3f3b39] border-gray-300 focus:ring-[#3f3b39] cursor-pointer"
+                    disabled
+                  />
+                  <span className="text-gray-700 font-light">Light</span>
+                </label>
+                <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="theme"
+                    value="dark"
+                    className="w-4 h-4 text-[#3f3b39] border-gray-300 focus:ring-[#3f3b39] cursor-pointer"
+                    disabled
+                  />
+                  <span className="text-gray-700 font-light">Dark</span>
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-2 font-light">Theme preference coming soon</p>
+            </div>
           </div>
         </div>
       )}

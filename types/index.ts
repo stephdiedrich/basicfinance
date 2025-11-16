@@ -14,9 +14,10 @@ export interface Asset {
 export interface AssetView {
   id: string;
   name: string;
-  filterCategories?: string[];
-  filterInstitutions?: string[];
-  customOrder?: string[];
+  assetIds?: string[]; // Array of asset IDs in this view
+  filterCategories?: string[]; // Deprecated - kept for backward compatibility
+  filterInstitutions?: string[]; // Deprecated - kept for backward compatibility
+  customOrder?: string[]; // Deprecated - kept for backward compatibility
 }
 
 export interface AssetClass {
@@ -42,8 +43,9 @@ export interface Liability {
 export interface LiabilityView {
   id: string;
   name: string;
-  filterCategories?: string[];
-  customOrder?: string[];
+  liabilityIds?: string[]; // Store liability IDs directly
+  filterCategories?: string[]; // Deprecated - kept for backward compatibility
+  customOrder?: string[]; // Deprecated - kept for backward compatibility
 }
 
 export interface LiabilityClass {

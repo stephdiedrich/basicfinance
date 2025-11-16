@@ -19,6 +19,7 @@ body {
   color: var(--foreground);
   background: var(--background);
   font-family: 'Satoshi', system-ui, sans-serif;
+  font-weight: 300; /* Satoshi Light */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -26,6 +27,16 @@ body {
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+  
+  /* Ensure font-light uses Satoshi Light (300) */
+  .font-light {
+    font-weight: 300;
+  }
+  
+  /* Ensure font-medium uses Satoshi Medium (500) */
+  .font-medium {
+    font-weight: 500;
   }
 }
 

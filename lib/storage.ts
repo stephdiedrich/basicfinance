@@ -86,6 +86,7 @@ export function getFinancialData(): FinancialData {
       return {
         ...defaultData,
         ...data,
+        assetViews: data.assetViews || [], // Keep existing views
         cashFlowGroups: data.cashFlowGroups || defaultCashFlowGroups,
         cashFlowCategories: data.cashFlowCategories || defaultCashFlowCategories,
         cashFlowLineItems: data.cashFlowLineItems || defaultCashFlowLineItems,

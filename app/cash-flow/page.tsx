@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getFinancialData, getBudgets, getCashFlowLineItems, getCashFlowGroups, getCashFlowCategories } from '@/lib/storage';
+import { getFinancialData, getBudgets, getCashFlowLineItems, getCashFlowGroups, getCashFlowCategories, addBudget, updateBudget } from '@/lib/storage';
 import { Transaction, BudgetItem, CashFlowLineItem, CashFlowGroup, CashFlowCategory } from '@/types';
 
 type ViewMode = 'month' | 'year';
@@ -13,6 +13,8 @@ interface ExpenseItem {
   budgeted: number;
   spent: number;
   percent: number;
+  lineItemId: string;
+  categoryName?: string;
 }
 
 interface ExpenseGroup {
@@ -34,6 +36,8 @@ export default function CashFlowPage() {
   const [groups, setGroups] = useState<CashFlowGroup[]>([]);
   const [categories, setCategories] = useState<CashFlowCategory[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [editingBudget, setEditingBudget] = useState<{ lineItemId: string; categoryName: string } | null>(null);
+  const [editingBudgetValue, setEditingBudgetValue] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -63,8 +67,8 @@ export default function CashFlowPage() {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount);
   };
 
@@ -191,6 +195,8 @@ export default function CashFlowPage() {
       budgeted,
       spent,
       percent,
+      lineItemId: lineItem.id,
+      categoryName: category?.name,
     });
 
     expenseGroup.totalBudgeted += budgeted;
@@ -208,6 +214,66 @@ export default function CashFlowPage() {
   const totalExpensesBudgeted = expenseGroups.reduce((sum, g) => sum + g.totalBudgeted, 0);
   const totalExpensesSpent = expenseGroups.reduce((sum, g) => sum + g.totalSpent, 0);
   const netIncome = totalIncome - totalExpensesSpent;
+
+  // Handle budget editing
+  const handleBudgetEdit = (item: ExpenseItem) => {
+    setEditingBudget({ lineItemId: item.lineItemId, categoryName: item.categoryName || '' });
+    setEditingBudgetValue(item.budgeted.toString());
+  };
+
+  const handleBudgetSave = (item: ExpenseItem) => {
+    const value = parseFloat(editingBudgetValue.replace(/[^0-9.-]/g, '')) || 0;
+    const categoryName = item.categoryName || item.category;
+    
+    if (viewMode === 'month') {
+      // Find existing budget for this month
+      const existingBudget = budgets.find(b => 
+        (b.category === categoryName || b.subCategory === categoryName) &&
+        b.year === selectedYear &&
+        b.month === selectedMonth
+      );
+      
+      if (existingBudget) {
+        updateBudget(existingBudget.id, { budgeted: value });
+      } else {
+        addBudget({
+          category: categoryName,
+          budgeted: value,
+          year: selectedYear,
+          month: selectedMonth,
+        });
+      }
+    } else {
+      // For annual view, update all months (or create if doesn't exist)
+      for (let m = 1; m <= 12; m++) {
+        const existingBudget = budgets.find(b => 
+          (b.category === categoryName || b.subCategory === categoryName) &&
+          b.year === selectedYear &&
+          b.month === m
+        );
+        
+        if (existingBudget) {
+          updateBudget(existingBudget.id, { budgeted: value / 12 });
+        } else {
+          addBudget({
+            category: categoryName,
+            budgeted: value / 12,
+            year: selectedYear,
+            month: m,
+          });
+        }
+      }
+    }
+    
+    setEditingBudget(null);
+    setEditingBudgetValue('');
+    loadData();
+  };
+
+  const handleBudgetCancel = () => {
+    setEditingBudget(null);
+    setEditingBudgetValue('');
+  };
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -349,13 +415,14 @@ export default function CashFlowPage() {
             <h2 className="text-2xl font-medium mb-6 text-black">Income</h2>
             <div className="space-y-1">
               {/* Income items grouped by groups */}
-              {(groups || []).filter(group => incomeLineItems.some(item => item.groupId === group.id)).map((group) => {
+              {(groups || []).filter(group => incomeLineItems.some(item => item.groupId === group.id)).map((group, groupIndex, filteredGroups) => {
                 const groupItems = incomeLineItems.filter(item => item.groupId === group.id);
                 const groupTotal = groupItems.reduce((sum, item) => sum + (incomeItemsMap.get(item.id) || 0), 0);
                 const isCollapsed = collapsedGroups.has(group.id);
+                const isLastGroup = groupIndex === filteredGroups.length - 1 && incomeLineItems.filter(item => !item.groupId).length === 0;
                 
                 return (
-                  <div key={group.id} className="border-b border-gray-200 last:border-b-0">
+                  <div key={group.id} className={isLastGroup ? '' : 'border-b border-gray-200'}>
                     {/* Group header with subtotal */}
                     <div 
                       className="flex justify-between items-center py-3 cursor-pointer hover:bg-gray-50 transition-colors"
@@ -394,7 +461,7 @@ export default function CashFlowPage() {
               })}
               {/* Ungrouped income items */}
               {incomeLineItems.filter(item => !item.groupId).length > 0 && (
-                <div className="space-y-1 border-b border-gray-200 pb-2">
+                <div className="space-y-1 pb-2">
                   {incomeLineItems.filter(item => !item.groupId).map((item) => {
                     const amount = incomeItemsMap.get(item.id) || 0;
                     return (
@@ -409,7 +476,7 @@ export default function CashFlowPage() {
               {incomeLineItems.length === 0 && (
                 <div className="py-2 text-gray-500 text-sm">No income line items configured. Add them in Settings.</div>
               )}
-              <div className="flex justify-between items-center py-3 border-t-2 border-gray-200 mt-2">
+              <div className="flex justify-between items-center py-3 border-t-2 border-gray-300 mt-2">
                 <span className="font-medium text-black">Total Income</span>
                 <span className="font-medium text-black">{formatCurrency(totalIncome)}</span>
               </div>
@@ -418,30 +485,36 @@ export default function CashFlowPage() {
 
           {/* Expenses Section */}
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-medium text-black">Expenses</h2>
-              <div className="flex items-center gap-6 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <span className="w-24 text-right">Budgeted</span>
-                <span className="w-24 text-right">Spent</span>
-                <span className="w-16 text-right">% Budget</span>
+            <div className="flex items-center mb-6">
+              <h2 className="text-2xl font-medium text-black flex-1">Expenses</h2>
+              <div className="flex text-xs font-medium text-gray-500 uppercase tracking-wider" style={{ width: '280px', justifyContent: 'flex-end', gap: '24px' }}>
+                <span className="text-right" style={{ width: '96px', display: 'block', whiteSpace: 'nowrap' }}>Budgeted</span>
+                <span className="text-right" style={{ width: '96px', display: 'block', whiteSpace: 'nowrap' }}>Spent</span>
+                <span className="text-right" style={{ width: '64px', display: 'block', whiteSpace: 'nowrap' }}>% Budget</span>
               </div>
             </div>
             <div className="space-y-1">
               {/* Expense groups matching settings structure */}
-              {(groups || []).map((group) => {
-                const groupExpenseData = expenseGroups.find(g => g.name === group.name);
-                if (!groupExpenseData || groupExpenseData.items.length === 0) return null;
+              {(() => {
+                const groupsWithExpenses = (groups || []).filter(group => {
+                  const groupExpenseData = expenseGroups.find(g => g.name === group.name);
+                  return groupExpenseData && groupExpenseData.items.length > 0;
+                });
+                const hasUngrouped = expenseGroups.find(g => g.name === 'Ungrouped') && expenseGroups.find(g => g.name === 'Ungrouped')!.items.length > 0;
                 
-                const isCollapsed = collapsedGroups.has(group.id);
-                
-                return (
-                  <div key={group.id} className="border-b border-gray-200 last:border-b-0">
+                return groupsWithExpenses.map((group, groupIndex) => {
+                  const groupExpenseData = expenseGroups.find(g => g.name === group.name)!;
+                  const isCollapsed = collapsedGroups.has(group.id);
+                  const isLastGroup = groupIndex === groupsWithExpenses.length - 1 && !hasUngrouped;
+                  
+                  return (
+                    <div key={group.id} className={isLastGroup ? '' : 'border-b border-gray-200'}>
                     {/* Group header with subtotal */}
                     <div 
-                      className="flex justify-between items-center py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                      className="flex items-center py-3 cursor-pointer hover:bg-gray-50 transition-colors"
                       onClick={() => toggleGroup(group.id)}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-1">
                         <svg 
                           width="16" 
                           height="16" 
@@ -453,16 +526,16 @@ export default function CashFlowPage() {
                         </svg>
                         <span className="font-medium text-black">{group.name}</span>
                       </div>
-                      <div className="flex items-center gap-6">
-                        <span className="text-right font-medium text-black w-24">
+                      <div className="flex" style={{ width: '280px', justifyContent: 'flex-end', gap: '24px' }}>
+                        <span className="text-right font-medium text-black" style={{ width: '96px', display: 'block' }}>
                           {formatCurrency(groupExpenseData.totalBudgeted)}
                         </span>
-                        <span className="text-right font-medium text-black w-24">
+                        <span className="text-right font-medium text-black" style={{ width: '96px', display: 'block' }}>
                           {formatCurrency(groupExpenseData.totalSpent)}
                         </span>
-                        <span className={`text-right font-medium w-16 ${
+                        <span className={`text-right font-medium ${
                           groupExpenseData.totalPercent > 100 ? 'text-orange-600' : 'text-black'
-                        }`}>
+                        }`} style={{ width: '64px', display: 'block' }}>
                           {groupExpenseData.totalPercent}%
                         </span>
                       </div>
@@ -473,21 +546,45 @@ export default function CashFlowPage() {
                         {groupExpenseData.items.map((item, itemIndex) => (
                           <div
                             key={itemIndex}
-                            className={`flex justify-between items-center py-2 pl-8 ${
+                            className={`flex items-center py-2 pl-8 ${
                               item.percent > 100 ? 'bg-orange-50 rounded-lg px-3' : ''
                             }`}
                           >
-                            <span className="text-gray-700 font-light">{item.name}</span>
-                            <div className="flex items-center gap-6">
-                              <span className="text-right font-light text-gray-700 w-24">
-                                {formatCurrency(item.budgeted)}
-                              </span>
-                              <span className="text-right font-light text-gray-700 w-24">
+                            <span className="text-gray-700 font-light flex-1">{item.name}</span>
+                            <div className="flex" style={{ width: '280px', justifyContent: 'flex-end', gap: '24px' }}>
+                              {editingBudget?.lineItemId === item.lineItemId ? (
+                                <input
+                                  type="text"
+                                  value={editingBudgetValue}
+                                  onChange={(e) => setEditingBudgetValue(e.target.value)}
+                                  onBlur={() => handleBudgetSave(item)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleBudgetSave(item);
+                                    } else if (e.key === 'Escape') {
+                                      handleBudgetCancel();
+                                    }
+                                  }}
+                                  className="text-right font-light text-gray-700 border-b-2 border-[#3f3b39] focus:outline-none bg-transparent px-1"
+                                  style={{ width: '96px', display: 'block' }}
+                                  autoFocus
+                                />
+                              ) : (
+                                <span 
+                                  className="text-right font-light text-gray-700 cursor-pointer hover:text-black transition-colors" 
+                                  style={{ width: '96px', display: 'block' }}
+                                  onClick={() => handleBudgetEdit(item)}
+                                  title="Click to edit budget"
+                                >
+                                  {formatCurrency(item.budgeted)}
+                                </span>
+                              )}
+                              <span className="text-right font-light text-gray-700" style={{ width: '96px', display: 'block' }}>
                                 {formatCurrency(item.spent)}
                               </span>
-                              <span className={`text-right font-medium w-16 ${
+                              <span className={`text-right font-medium ${
                                 item.percent > 100 ? 'text-orange-600' : 'text-gray-700'
-                              }`}>
+                              }`} style={{ width: '64px', display: 'block' }}>
                                 {item.percent}%
                               </span>
                             </div>
@@ -496,26 +593,27 @@ export default function CashFlowPage() {
                       </div>
                     )}
                   </div>
-                );
-              })}
+                  );
+                });
+              })()}
               {/* Ungrouped expenses */}
               {expenseGroups.find(g => g.name === 'Ungrouped') && (() => {
                 const ungrouped = expenseGroups.find(g => g.name === 'Ungrouped')!;
                 if (ungrouped.items.length === 0) return null;
                 return (
-                  <div className="border-b border-gray-200 last:border-b-0">
-                    <div className="flex justify-between items-center py-3">
-                      <span className="font-medium text-black">Ungrouped</span>
-                      <div className="flex items-center gap-6">
-                        <span className="text-right font-medium text-black w-24">
+                  <div>
+                    <div className="flex items-center py-3">
+                      <span className="font-medium text-black flex-1">Ungrouped</span>
+                      <div className="flex" style={{ width: '280px', justifyContent: 'flex-end', gap: '24px' }}>
+                        <span className="text-right font-medium text-black" style={{ width: '96px', display: 'block' }}>
                           {formatCurrency(ungrouped.totalBudgeted)}
                         </span>
-                        <span className="text-right font-medium text-black w-24">
+                        <span className="text-right font-medium text-black" style={{ width: '96px', display: 'block' }}>
                           {formatCurrency(ungrouped.totalSpent)}
                         </span>
-                        <span className={`text-right font-medium w-16 ${
+                        <span className={`text-right font-medium ${
                           ungrouped.totalPercent > 100 ? 'text-orange-600' : 'text-black'
-                        }`}>
+                        }`} style={{ width: '64px', display: 'block' }}>
                           {ungrouped.totalPercent}%
                         </span>
                       </div>
@@ -524,21 +622,45 @@ export default function CashFlowPage() {
                       {ungrouped.items.map((item, itemIndex) => (
                         <div
                           key={itemIndex}
-                          className={`flex justify-between items-center py-2 pl-8 ${
+                          className={`flex items-center py-2 pl-8 ${
                             item.percent > 100 ? 'bg-orange-50 rounded-lg px-3' : ''
                           }`}
                         >
-                          <span className="text-gray-700 font-light">{item.name}</span>
-                          <div className="flex items-center gap-6">
-                            <span className="text-right font-light text-gray-700 w-24">
-                              {formatCurrency(item.budgeted)}
-                            </span>
-                            <span className="text-right font-light text-gray-700 w-24">
+                          <span className="text-gray-700 font-light flex-1">{item.name}</span>
+                          <div className="flex" style={{ width: '280px', justifyContent: 'flex-end', gap: '24px' }}>
+                            {editingBudget?.lineItemId === item.lineItemId ? (
+                                <input
+                                  type="text"
+                                  value={editingBudgetValue}
+                                  onChange={(e) => setEditingBudgetValue(e.target.value)}
+                                  onBlur={() => handleBudgetSave(item)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleBudgetSave(item);
+                                    } else if (e.key === 'Escape') {
+                                      handleBudgetCancel();
+                                    }
+                                  }}
+                                  className="text-right font-light text-gray-700 border-b-2 border-[#3f3b39] focus:outline-none bg-transparent px-1"
+                                  style={{ width: '96px', display: 'block' }}
+                                  autoFocus
+                                />
+                            ) : (
+                              <span 
+                                className="text-right font-light text-gray-700 cursor-pointer hover:text-black transition-colors" 
+                                style={{ width: '96px', display: 'block' }}
+                                onClick={() => handleBudgetEdit(item)}
+                                title="Click to edit budget"
+                              >
+                                {formatCurrency(item.budgeted)}
+                              </span>
+                            )}
+                            <span className="text-right font-light text-gray-700" style={{ width: '96px', display: 'block' }}>
                               {formatCurrency(item.spent)}
                             </span>
-                            <span className={`text-right font-medium w-16 ${
+                            <span className={`text-right font-medium ${
                               item.percent > 100 ? 'text-orange-600' : 'text-gray-700'
-                            }`}>
+                            }`} style={{ width: '64px', display: 'block' }}>
                               {item.percent}%
                             </span>
                           </div>
@@ -551,16 +673,16 @@ export default function CashFlowPage() {
               {expenseLineItems.length === 0 && (
                 <div className="py-2 text-gray-500 text-sm">No expense line items configured. Add them in Settings.</div>
               )}
-              <div className="flex justify-between items-center py-3 border-t-2 border-gray-200 mt-2">
-                <span className="font-medium text-black">Total Expenses</span>
-                <div className="flex items-center gap-6">
-                  <span className="text-right font-medium text-black w-24">
+              <div className="flex items-center py-3 border-t-2 border-gray-300 mt-2">
+                <span className="font-medium text-black flex-1">Total Expenses</span>
+                <div className="flex" style={{ width: '280px', justifyContent: 'flex-end', gap: '24px' }}>
+                  <span className="text-right font-medium text-black" style={{ width: '96px', display: 'block' }}>
                     {formatCurrency(totalExpensesBudgeted)}
                   </span>
-                  <span className="text-right font-medium text-black w-24">
+                  <span className="text-right font-medium text-black" style={{ width: '96px', display: 'block' }}>
                     {formatCurrency(totalExpensesSpent)}
                   </span>
-                  <span className="w-16"></span>
+                  <span style={{ width: '64px', display: 'block' }}></span>
                 </div>
               </div>
         </div>
