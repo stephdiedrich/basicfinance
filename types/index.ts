@@ -57,6 +57,7 @@ export interface LiabilityClass {
 }
 
 export type TransactionType = 'income' | 'expense';
+/** @deprecated Use string category from CashFlowCategory instead */
 export type TransactionCategory = 
   | 'salary'
   | 'investment'
@@ -71,10 +72,14 @@ export type TransactionCategory =
 export interface Transaction {
   id: string;
   type: TransactionType;
-  category: TransactionCategory;
+  category: string; // Changed from TransactionCategory to string to support dynamic categories
   amount: number;
   description: string;
   date: string;
+  merchant?: string; // Merchant name (extracted from description or manually set)
+  reviewed?: boolean; // Whether transaction has been reviewed
+  tags?: string[]; // Tags for filtering (future use)
+  order?: number; // Order for drag-and-drop reordering
 }
 
 export interface BudgetItem {

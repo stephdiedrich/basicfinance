@@ -229,6 +229,26 @@ export function deleteTransaction(id: string): void {
   saveFinancialData(data);
 }
 
+export function reorderTransactions(transactionIds: string[]): void {
+  const data = getFinancialData();
+  const transactionMap = new Map(data.transactions.map(t => [t.id, t]));
+  const reordered: Transaction[] = [];
+  transactionIds.forEach((id, index) => {
+    const transaction = transactionMap.get(id);
+    if (transaction) {
+      reordered.push({ ...transaction, order: index });
+    }
+  });
+  // Add any transactions not in the reordered list
+  data.transactions.forEach(transaction => {
+    if (!transactionIds.includes(transaction.id)) {
+      reordered.push(transaction);
+    }
+  });
+  data.transactions = reordered;
+  saveFinancialData(data);
+}
+
 export function calculateNetWorth(): number {
   const data = getFinancialData();
   const totalAssets = data.assets.reduce((sum, asset) => sum + asset.value, 0);

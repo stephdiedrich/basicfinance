@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { getFinancialData, calculateNetWorth, getMonthlyCashFlow, getAssetClasses, getLiabilityClasses } from '@/lib/storage';
 import { Asset, Liability, Transaction, AssetClass, LiabilityClass } from '@/types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
@@ -47,6 +47,11 @@ export default function Home() {
   const [resizingCardId, setResizingCardId] = useState<CardType | null>(null);
   const [resizeStart, setResizeStart] = useState<{ x: number; y: number; colSpan: number; rowSpan: number; edge: string } | null>(null);
   const [previewSize, setPreviewSize] = useState<{ colSpan: number; rowSpan: number } | null>(null);
+  const [hoveredCardId, setHoveredCardId] = useState<CardType | null>(null);
+  const [showPencilIcon, setShowPencilIcon] = useState<CardType | null>(null);
+  const [openMenuCardId, setOpenMenuCardId] = useState<CardType | null>(null);
+  const [resizeModeCardId, setResizeModeCardId] = useState<CardType | null>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load card layouts from localStorage
   useEffect(() => {
@@ -482,6 +487,62 @@ export default function Home() {
   // Sort layouts by order
   const sortedLayouts = [...cardLayouts].sort((a, b) => a.order - b.order);
 
+  const handleCardMouseEnter = (cardId: CardType) => {
+    setHoveredCardId(cardId);
+    // Show pencil icon after a short delay
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    hoverTimeoutRef.current = setTimeout(() => {
+      setShowPencilIcon(cardId);
+    }, 500); // 500ms delay
+  };
+
+  const handleCardMouseLeave = () => {
+    setHoveredCardId(null);
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    // Only hide pencil if menu is not open
+    if (!openMenuCardId) {
+      setShowPencilIcon(null);
+    }
+  };
+
+  const handlePencilClick = (e: React.MouseEvent, cardId: CardType) => {
+    e.stopPropagation();
+    setOpenMenuCardId(openMenuCardId === cardId ? null : cardId);
+  };
+
+  const handleResizeClick = (cardId: CardType) => {
+    setResizeModeCardId(cardId);
+    setOpenMenuCardId(null);
+    setShowPencilIcon(null);
+  };
+
+  const handleReorderClick = (cardId: CardType) => {
+    // Enable drag mode - the card is already draggable, just close menu
+    setOpenMenuCardId(null);
+    setShowPencilIcon(null);
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openMenuCardId) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('.card-menu-container')) {
+          setOpenMenuCardId(null);
+          if (!hoveredCardId) {
+            setShowPencilIcon(null);
+          }
+        }
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openMenuCardId, hoveredCardId]);
+
   const renderCard = (layout: CardLayout) => {
     const isDragging = draggedCardId === layout.id;
     const isDraggedOver = draggedOverCardId === layout.id;
@@ -489,9 +550,12 @@ export default function Home() {
     const preview = isResizing && previewSize ? previewSize : null;
     const displayColSpan = preview ? preview.colSpan : layout.colSpan;
     const displayRowSpan = preview ? preview.rowSpan : layout.rowSpan;
+    const isResizeMode = resizeModeCardId === layout.id;
+    const showPencil = showPencilIcon === layout.id;
+    const showMenu = openMenuCardId === layout.id;
 
-    const baseClasses = `bg-white rounded-2xl p-7 shadow-card hover:shadow-card-hover transition-all cursor-move relative group ${
-      isDragging ? 'opacity-50' : ''
+    const baseClasses = `bg-white rounded-2xl p-7 shadow-card hover:shadow-card-hover transition-all relative ${
+      isDragging ? 'opacity-50 cursor-grabbing' : 'cursor-default'
     } ${isDraggedOver ? 'ring-2 ring-[#3f3b39]' : ''} ${isResizing ? 'select-none' : ''} ${
       preview ? 'ring-2 ring-dashed ring-[#3f3b39]' : ''
     }`;
@@ -501,52 +565,55 @@ export default function Home() {
       gridRow: `span ${displayRowSpan}`,
     };
 
-    const ResizeHandles = () => (
-      <>
-        {/* Corner handles */}
-        <div
-          className="absolute top-0 left-0 w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity cursor-nwse-resize z-10 bg-gray-200 hover:bg-gray-300 rounded-br"
-          onMouseDown={(e) => handleResizeStart(e, layout.id, 'top-left')}
-          title="Resize"
-        />
-        <div
-          className="absolute top-0 right-0 w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity cursor-nesw-resize z-10 bg-gray-200 hover:bg-gray-300 rounded-bl"
-          onMouseDown={(e) => handleResizeStart(e, layout.id, 'top-right')}
-          title="Resize"
-        />
-        <div
-          className="absolute bottom-0 left-0 w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity cursor-nesw-resize z-10 bg-gray-200 hover:bg-gray-300 rounded-tr"
-          onMouseDown={(e) => handleResizeStart(e, layout.id, 'bottom-left')}
-          title="Resize"
-        />
-        <div
-          className="absolute bottom-0 right-0 w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity cursor-nwse-resize z-10 bg-gray-200 hover:bg-gray-300 rounded-tl"
-          onMouseDown={(e) => handleResizeStart(e, layout.id, 'bottom-right')}
-          title="Resize"
-        />
-        {/* Edge handles */}
-        <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-ns-resize z-10 bg-gray-200 hover:bg-gray-300 rounded-b"
-          onMouseDown={(e) => handleResizeStart(e, layout.id, 'top')}
-          title="Resize"
-        />
-        <div
-          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-2 opacity-0 group-hover:opacity-100 transition-opacity cursor-ns-resize z-10 bg-gray-200 hover:bg-gray-300 rounded-t"
-          onMouseDown={(e) => handleResizeStart(e, layout.id, 'bottom')}
-          title="Resize"
-        />
-        <div
-          className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-12 opacity-0 group-hover:opacity-100 transition-opacity cursor-ew-resize z-10 bg-gray-200 hover:bg-gray-300 rounded-r"
-          onMouseDown={(e) => handleResizeStart(e, layout.id, 'left')}
-          title="Resize"
-        />
-        <div
-          className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-12 opacity-0 group-hover:opacity-100 transition-opacity cursor-ew-resize z-10 bg-gray-200 hover:bg-gray-300 rounded-l"
-          onMouseDown={(e) => handleResizeStart(e, layout.id, 'right')}
-          title="Resize"
-        />
-      </>
-    );
+    const ResizeHandles = () => {
+      if (!isResizeMode) return null;
+      return (
+        <>
+          {/* Corner handles */}
+          <div
+            className="absolute top-0 left-0 w-6 h-6 cursor-nwse-resize z-20 bg-[#3f3b39] opacity-20 hover:opacity-40 rounded-br"
+            onMouseDown={(e) => handleResizeStart(e, layout.id, 'top-left')}
+            title="Resize"
+          />
+          <div
+            className="absolute top-0 right-0 w-6 h-6 cursor-nesw-resize z-20 bg-[#3f3b39] opacity-20 hover:opacity-40 rounded-bl"
+            onMouseDown={(e) => handleResizeStart(e, layout.id, 'top-right')}
+            title="Resize"
+          />
+          <div
+            className="absolute bottom-0 left-0 w-6 h-6 cursor-nesw-resize z-20 bg-[#3f3b39] opacity-20 hover:opacity-40 rounded-tr"
+            onMouseDown={(e) => handleResizeStart(e, layout.id, 'bottom-left')}
+            title="Resize"
+          />
+          <div
+            className="absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize z-20 bg-[#3f3b39] opacity-20 hover:opacity-40 rounded-tl"
+            onMouseDown={(e) => handleResizeStart(e, layout.id, 'bottom-right')}
+            title="Resize"
+          />
+          {/* Edge handles */}
+          <div
+            className="absolute top-0 left-6 right-6 h-4 cursor-ns-resize z-20 bg-[#3f3b39] opacity-20 hover:opacity-40"
+            onMouseDown={(e) => handleResizeStart(e, layout.id, 'top')}
+            title="Resize"
+          />
+          <div
+            className="absolute bottom-0 left-6 right-6 h-4 cursor-ns-resize z-20 bg-[#3f3b39] opacity-20 hover:opacity-40"
+            onMouseDown={(e) => handleResizeStart(e, layout.id, 'bottom')}
+            title="Resize"
+          />
+          <div
+            className="absolute left-0 top-6 bottom-6 w-4 cursor-ew-resize z-20 bg-[#3f3b39] opacity-20 hover:opacity-40"
+            onMouseDown={(e) => handleResizeStart(e, layout.id, 'left')}
+            title="Resize"
+          />
+          <div
+            className="absolute right-0 top-6 bottom-6 w-4 cursor-ew-resize z-20 bg-[#3f3b39] opacity-20 hover:opacity-40"
+            onMouseDown={(e) => handleResizeStart(e, layout.id, 'right')}
+            title="Resize"
+          />
+        </>
+      );
+    };
 
     switch (layout.id) {
       case 'net-worth':
@@ -555,7 +622,9 @@ export default function Home() {
             key={layout.id}
             className={baseClasses}
             style={gridStyle}
-            draggable
+            draggable={!isResizeMode}
+            onMouseEnter={() => handleCardMouseEnter(layout.id)}
+            onMouseLeave={handleCardMouseLeave}
             onDragStart={(e) => handleDragStart(e, layout.id)}
             onDragOver={(e) => handleDragOver(e, layout.id)}
             onDragLeave={handleDragLeave}
@@ -563,6 +632,61 @@ export default function Home() {
             onDragEnd={handleDragEnd}
           >
             <ResizeHandles />
+            {/* Pencil Icon */}
+            {showPencil && !isResizeMode && (
+              <button
+                onClick={(e) => handlePencilClick(e, layout.id)}
+                className="absolute top-4 right-4 p-2 rounded-lg bg-white shadow-md hover:bg-gray-50 transition-all z-30 card-menu-container cursor-pointer"
+                title="Edit card"
+              >
+                <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
+                  <path d="M227.31,73.37,182.63,28.69a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.68,147.31,64l24-24L216,84.68Z"/>
+                </svg>
+              </button>
+            )}
+            {/* Menu Dropdown */}
+            {showMenu && (
+              <div className="absolute top-12 right-4 bg-white border border-gray-200 rounded-lg shadow-lg z-40 card-menu-container min-w-[140px]">
+                <button
+                  onClick={() => handleResizeClick(layout.id)}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor">
+                    <path d="M237.66,133.66l-32,32a8,8,0,0,1-11.32-11.32L212.69,136H43.31l18.35,18.34a8,8,0,0,1-11.32,11.32l-32-32a8,8,0,0,1,0-11.32l32-32a8,8,0,0,1,11.32,11.32L43.31,120H212.69l-18.35-18.34a8,8,0,0,1,11.32-11.32l32,32A8,8,0,0,1,237.66,133.66Z"/>
+                  </svg>
+                  Resize
+                </button>
+                <button
+                  onClick={() => handleReorderClick(layout.id)}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor">
+                    <path d="M216,48V96a8,8,0,0,1-16,0V67.31l-42.34,42.35a8,8,0,0,1-11.32-11.32L188.69,56H160a8,8,0,0,1,0-16h48A8,8,0,0,1,216,48ZM98.34,146.34,56,188.69V160a8,8,0,0,0-16,0v48a8,8,0,0,0,8,8H96a8,8,0,0,0,0-16H67.31l42.35-42.34a8,8,0,0,0-11.32-11.32ZM208,152a8,8,0,0,0-8,8v28.69l-42.34-42.35a8,8,0,0,0-11.32,11.32L188.69,200H160a8,8,0,0,0,0,16h48a8,8,0,0,0,8-8V160A8,8,0,0,0,208,152ZM67.31,56H96a8,8,0,0,0,0-16H48a8,8,0,0,0-8,8V96a8,8,0,0,0,16,0V67.31l42.34,42.35a8,8,0,0,0,11.32-11.32Z"/>
+                  </svg>
+                  Reorder
+                </button>
+      </div>
+            )}
+            {/* Exit Resize Mode Button */}
+            {isResizeMode && (
+              <button
+                onClick={() => {
+                  setResizeModeCardId(null);
+                  setShowPencilIcon(null);
+                  // Clear any active resize state
+                  if (resizingCardId === layout.id) {
+                    setResizingCardId(null);
+                    setResizeStart(null);
+                    setPreviewSize(null);
+                    document.body.style.userSelect = '';
+                    document.body.style.cursor = '';
+                  }
+                }}
+                className="absolute top-4 right-4 px-3 py-1.5 bg-[#3f3b39] text-white text-xs rounded-lg hover:bg-[#4d4845] transition-all z-30 cursor-pointer"
+              >
+                Done
+              </button>
+            )}
             <p className="text-sm font-medium text-gray-500 mb-3 uppercase tracking-wide">Net Worth</p>
             <p className={`text-4xl font-medium tracking-tight mb-4 ${netWorth >= 0 ? 'text-black' : 'text-red-600'}`}>
             {formatCurrency(netWorth)}
@@ -596,7 +720,9 @@ export default function Home() {
             key={layout.id}
             className={baseClasses}
             style={gridStyle}
-            draggable
+            draggable={!isResizeMode}
+            onMouseEnter={() => handleCardMouseEnter(layout.id)}
+            onMouseLeave={handleCardMouseLeave}
             onDragStart={(e) => handleDragStart(e, layout.id)}
             onDragOver={(e) => handleDragOver(e, layout.id)}
             onDragLeave={handleDragLeave}
@@ -604,6 +730,61 @@ export default function Home() {
             onDragEnd={handleDragEnd}
           >
             <ResizeHandles />
+            {/* Pencil Icon */}
+            {showPencil && !isResizeMode && (
+              <button
+                onClick={(e) => handlePencilClick(e, layout.id)}
+                className="absolute top-4 right-4 p-2 rounded-lg bg-white shadow-md hover:bg-gray-50 transition-all z-30 card-menu-container cursor-pointer"
+                title="Edit card"
+              >
+                <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
+                  <path d="M227.31,73.37,182.63,28.69a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.68,147.31,64l24-24L216,84.68Z"/>
+                </svg>
+              </button>
+            )}
+            {/* Menu Dropdown */}
+            {showMenu && (
+              <div className="absolute top-12 right-4 bg-white border border-gray-200 rounded-lg shadow-lg z-40 card-menu-container min-w-[140px]">
+                <button
+                  onClick={() => handleResizeClick(layout.id)}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor">
+                    <path d="M237.66,133.66l-32,32a8,8,0,0,1-11.32-11.32L212.69,136H43.31l18.35,18.34a8,8,0,0,1-11.32,11.32l-32-32a8,8,0,0,1,0-11.32l32-32a8,8,0,0,1,11.32,11.32L43.31,120H212.69l-18.35-18.34a8,8,0,0,1,11.32-11.32l32,32A8,8,0,0,1,237.66,133.66Z"/>
+                  </svg>
+                  Resize
+                </button>
+                <button
+                  onClick={() => handleReorderClick(layout.id)}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor">
+                    <path d="M216,48V96a8,8,0,0,1-16,0V67.31l-42.34,42.35a8,8,0,0,1-11.32-11.32L188.69,56H160a8,8,0,0,1,0-16h48A8,8,0,0,1,216,48ZM98.34,146.34,56,188.69V160a8,8,0,0,0-16,0v48a8,8,0,0,0,8,8H96a8,8,0,0,0,0-16H67.31l42.35-42.34a8,8,0,0,0-11.32-11.32ZM208,152a8,8,0,0,0-8,8v28.69l-42.34-42.35a8,8,0,0,0-11.32,11.32L188.69,200H160a8,8,0,0,0,0,16h48a8,8,0,0,0,8-8V160A8,8,0,0,0,208,152ZM67.31,56H96a8,8,0,0,0,0-16H48a8,8,0,0,0-8,8V96a8,8,0,0,0,16,0V67.31l42.34,42.35a8,8,0,0,0,11.32-11.32Z"/>
+                  </svg>
+                  Reorder
+                </button>
+              </div>
+            )}
+            {/* Exit Resize Mode Button */}
+            {isResizeMode && (
+              <button
+                onClick={() => {
+                  setResizeModeCardId(null);
+                  setShowPencilIcon(null);
+                  // Clear any active resize state
+                  if (resizingCardId === layout.id) {
+                    setResizingCardId(null);
+                    setResizeStart(null);
+                    setPreviewSize(null);
+                    document.body.style.userSelect = '';
+                    document.body.style.cursor = '';
+                  }
+                }}
+                className="absolute top-4 right-4 px-3 py-1.5 bg-[#3f3b39] text-white text-xs rounded-lg hover:bg-[#4d4845] transition-all z-30 cursor-pointer"
+              >
+                Done
+              </button>
+            )}
             <p className="text-sm font-medium text-gray-500 mb-4 uppercase tracking-wide">Performance</p>
             <div style={{ width: '100%', height: '250px' }}>
               {isClient && performanceData.length > 0 ? (
@@ -673,9 +854,9 @@ export default function Home() {
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-gray-400 font-light text-sm">Loading performance data...</p>
-                </div>
+        </div>
               )}
-            </div>
+        </div>
       </div>
         );
 
@@ -685,7 +866,9 @@ export default function Home() {
             key={layout.id}
             className={baseClasses}
             style={gridStyle}
-            draggable
+            draggable={!isResizeMode}
+            onMouseEnter={() => handleCardMouseEnter(layout.id)}
+            onMouseLeave={handleCardMouseLeave}
             onDragStart={(e) => handleDragStart(e, layout.id)}
             onDragOver={(e) => handleDragOver(e, layout.id)}
             onDragLeave={handleDragLeave}
@@ -693,6 +876,61 @@ export default function Home() {
             onDragEnd={handleDragEnd}
           >
             <ResizeHandles />
+            {/* Pencil Icon */}
+            {showPencil && !isResizeMode && (
+              <button
+                onClick={(e) => handlePencilClick(e, layout.id)}
+                className="absolute top-4 right-4 p-2 rounded-lg bg-white shadow-md hover:bg-gray-50 transition-all z-30 card-menu-container cursor-pointer"
+                title="Edit card"
+              >
+                <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
+                  <path d="M227.31,73.37,182.63,28.69a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.68,147.31,64l24-24L216,84.68Z"/>
+                </svg>
+              </button>
+            )}
+            {/* Menu Dropdown */}
+            {showMenu && (
+              <div className="absolute top-12 right-4 bg-white border border-gray-200 rounded-lg shadow-lg z-40 card-menu-container min-w-[140px]">
+                <button
+                  onClick={() => handleResizeClick(layout.id)}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor">
+                    <path d="M237.66,133.66l-32,32a8,8,0,0,1-11.32-11.32L212.69,136H43.31l18.35,18.34a8,8,0,0,1-11.32,11.32l-32-32a8,8,0,0,1,0-11.32l32-32a8,8,0,0,1,11.32,11.32L43.31,120H212.69l-18.35-18.34a8,8,0,0,1,11.32-11.32l32,32A8,8,0,0,1,237.66,133.66Z"/>
+                  </svg>
+                  Resize
+                </button>
+                <button
+                  onClick={() => handleReorderClick(layout.id)}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor">
+                    <path d="M216,48V96a8,8,0,0,1-16,0V67.31l-42.34,42.35a8,8,0,0,1-11.32-11.32L188.69,56H160a8,8,0,0,1,0-16h48A8,8,0,0,1,216,48ZM98.34,146.34,56,188.69V160a8,8,0,0,0-16,0v48a8,8,0,0,0,8,8H96a8,8,0,0,0,0-16H67.31l42.35-42.34a8,8,0,0,0-11.32-11.32ZM208,152a8,8,0,0,0-8,8v28.69l-42.34-42.35a8,8,0,0,0-11.32,11.32L188.69,200H160a8,8,0,0,0,0,16h48a8,8,0,0,0,8-8V160A8,8,0,0,0,208,152ZM67.31,56H96a8,8,0,0,0,0-16H48a8,8,0,0,0-8,8V96a8,8,0,0,0,16,0V67.31l42.34,42.35a8,8,0,0,0,11.32-11.32Z"/>
+                  </svg>
+                  Reorder
+                </button>
+              </div>
+            )}
+            {/* Exit Resize Mode Button */}
+            {isResizeMode && (
+              <button
+                onClick={() => {
+                  setResizeModeCardId(null);
+                  setShowPencilIcon(null);
+                  // Clear any active resize state
+                  if (resizingCardId === layout.id) {
+                    setResizingCardId(null);
+                    setResizeStart(null);
+                    setPreviewSize(null);
+                    document.body.style.userSelect = '';
+                    document.body.style.cursor = '';
+                  }
+                }}
+                className="absolute top-4 right-4 px-3 py-1.5 bg-[#3f3b39] text-white text-xs rounded-lg hover:bg-[#4d4845] transition-all z-30 cursor-pointer"
+              >
+                Done
+              </button>
+            )}
             <p className="text-sm font-medium text-gray-500 mb-4 uppercase tracking-wide">Liquidity</p>
             <div className="space-y-4">
               <div>
@@ -717,7 +955,9 @@ export default function Home() {
             key={layout.id}
             className={baseClasses}
             style={gridStyle}
-            draggable
+            draggable={!isResizeMode}
+            onMouseEnter={() => handleCardMouseEnter(layout.id)}
+            onMouseLeave={handleCardMouseLeave}
             onDragStart={(e) => handleDragStart(e, layout.id)}
             onDragOver={(e) => handleDragOver(e, layout.id)}
             onDragLeave={handleDragLeave}
@@ -725,6 +965,61 @@ export default function Home() {
             onDragEnd={handleDragEnd}
           >
             <ResizeHandles />
+            {/* Pencil Icon */}
+            {showPencil && !isResizeMode && (
+              <button
+                onClick={(e) => handlePencilClick(e, layout.id)}
+                className="absolute top-4 right-4 p-2 rounded-lg bg-white shadow-md hover:bg-gray-50 transition-all z-30 card-menu-container cursor-pointer"
+                title="Edit card"
+              >
+                <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
+                  <path d="M227.31,73.37,182.63,28.69a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.68,147.31,64l24-24L216,84.68Z"/>
+                </svg>
+              </button>
+            )}
+            {/* Menu Dropdown */}
+            {showMenu && (
+              <div className="absolute top-12 right-4 bg-white border border-gray-200 rounded-lg shadow-lg z-40 card-menu-container min-w-[140px]">
+                <button
+                  onClick={() => handleResizeClick(layout.id)}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor">
+                    <path d="M237.66,133.66l-32,32a8,8,0,0,1-11.32-11.32L212.69,136H43.31l18.35,18.34a8,8,0,0,1-11.32,11.32l-32-32a8,8,0,0,1,0-11.32l32-32a8,8,0,0,1,11.32,11.32L43.31,120H212.69l-18.35-18.34a8,8,0,0,1,11.32-11.32l32,32A8,8,0,0,1,237.66,133.66Z"/>
+                  </svg>
+                  Resize
+                </button>
+                <button
+                  onClick={() => handleReorderClick(layout.id)}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor">
+                    <path d="M216,48V96a8,8,0,0,1-16,0V67.31l-42.34,42.35a8,8,0,0,1-11.32-11.32L188.69,56H160a8,8,0,0,1,0-16h48A8,8,0,0,1,216,48ZM98.34,146.34,56,188.69V160a8,8,0,0,0-16,0v48a8,8,0,0,0,8,8H96a8,8,0,0,0,0-16H67.31l42.35-42.34a8,8,0,0,0-11.32-11.32ZM208,152a8,8,0,0,0-8,8v28.69l-42.34-42.35a8,8,0,0,0-11.32,11.32L188.69,200H160a8,8,0,0,0,0,16h48a8,8,0,0,0,8-8V160A8,8,0,0,0,208,152ZM67.31,56H96a8,8,0,0,0,0-16H48a8,8,0,0,0-8,8V96a8,8,0,0,0,16,0V67.31l42.34,42.35a8,8,0,0,0,11.32-11.32Z"/>
+                  </svg>
+                  Reorder
+                </button>
+              </div>
+            )}
+            {/* Exit Resize Mode Button */}
+            {isResizeMode && (
+              <button
+                onClick={() => {
+                  setResizeModeCardId(null);
+                  setShowPencilIcon(null);
+                  // Clear any active resize state
+                  if (resizingCardId === layout.id) {
+                    setResizingCardId(null);
+                    setResizeStart(null);
+                    setPreviewSize(null);
+                    document.body.style.userSelect = '';
+                    document.body.style.cursor = '';
+                  }
+                }}
+                className="absolute top-4 right-4 px-3 py-1.5 bg-[#3f3b39] text-white text-xs rounded-lg hover:bg-[#4d4845] transition-all z-30 cursor-pointer"
+              >
+                Done
+              </button>
+            )}
             <p className="text-sm font-medium text-gray-500 mb-4 uppercase tracking-wide">Cash Flow</p>
             <div className="space-y-4">
               <div>
@@ -753,7 +1048,9 @@ export default function Home() {
             key={layout.id}
             className={baseClasses}
             style={gridStyle}
-            draggable
+            draggable={!isResizeMode}
+            onMouseEnter={() => handleCardMouseEnter(layout.id)}
+            onMouseLeave={handleCardMouseLeave}
             onDragStart={(e) => handleDragStart(e, layout.id)}
             onDragOver={(e) => handleDragOver(e, layout.id)}
             onDragLeave={handleDragLeave}
@@ -761,6 +1058,61 @@ export default function Home() {
             onDragEnd={handleDragEnd}
           >
             <ResizeHandles />
+            {/* Pencil Icon */}
+            {showPencil && !isResizeMode && (
+              <button
+                onClick={(e) => handlePencilClick(e, layout.id)}
+                className="absolute top-4 right-4 p-2 rounded-lg bg-white shadow-md hover:bg-gray-50 transition-all z-30 card-menu-container cursor-pointer"
+                title="Edit card"
+              >
+                <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
+                  <path d="M227.31,73.37,182.63,28.69a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.68,147.31,64l24-24L216,84.68Z"/>
+                </svg>
+              </button>
+            )}
+            {/* Menu Dropdown */}
+            {showMenu && (
+              <div className="absolute top-12 right-4 bg-white border border-gray-200 rounded-lg shadow-lg z-40 card-menu-container min-w-[140px]">
+                <button
+                  onClick={() => handleResizeClick(layout.id)}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor">
+                    <path d="M237.66,133.66l-32,32a8,8,0,0,1-11.32-11.32L212.69,136H43.31l18.35,18.34a8,8,0,0,1-11.32,11.32l-32-32a8,8,0,0,1,0-11.32l32-32a8,8,0,0,1,11.32,11.32L43.31,120H212.69l-18.35-18.34a8,8,0,0,1,11.32-11.32l32,32A8,8,0,0,1,237.66,133.66Z"/>
+                  </svg>
+                  Resize
+                </button>
+                <button
+                  onClick={() => handleReorderClick(layout.id)}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor">
+                    <path d="M216,48V96a8,8,0,0,1-16,0V67.31l-42.34,42.35a8,8,0,0,1-11.32-11.32L188.69,56H160a8,8,0,0,1,0-16h48A8,8,0,0,1,216,48ZM98.34,146.34,56,188.69V160a8,8,0,0,0-16,0v48a8,8,0,0,0,8,8H96a8,8,0,0,0,0-16H67.31l42.35-42.34a8,8,0,0,0-11.32-11.32ZM208,152a8,8,0,0,0-8,8v28.69l-42.34-42.35a8,8,0,0,0-11.32,11.32L188.69,200H160a8,8,0,0,0,0,16h48a8,8,0,0,0,8-8V160A8,8,0,0,0,208,152ZM67.31,56H96a8,8,0,0,0,0-16H48a8,8,0,0,0-8,8V96a8,8,0,0,0,16,0V67.31l42.34,42.35a8,8,0,0,0,11.32-11.32Z"/>
+                  </svg>
+                  Reorder
+                </button>
+              </div>
+            )}
+            {/* Exit Resize Mode Button */}
+            {isResizeMode && (
+              <button
+                onClick={() => {
+                  setResizeModeCardId(null);
+                  setShowPencilIcon(null);
+                  // Clear any active resize state
+                  if (resizingCardId === layout.id) {
+                    setResizingCardId(null);
+                    setResizeStart(null);
+                    setPreviewSize(null);
+                    document.body.style.userSelect = '';
+                    document.body.style.cursor = '';
+                  }
+                }}
+                className="absolute top-4 right-4 px-3 py-1.5 bg-[#3f3b39] text-white text-xs rounded-lg hover:bg-[#4d4845] transition-all z-30 cursor-pointer"
+              >
+                Done
+              </button>
+            )}
             <p className="text-sm font-medium text-gray-500 mb-4 uppercase tracking-wide">Asset Allocation</p>
             {isClient && assetAllocationData.length > 0 ? (
               <div style={{ width: '100%', height: '250px' }}>
@@ -808,7 +1160,9 @@ export default function Home() {
             key={layout.id}
             className={baseClasses}
             style={gridStyle}
-            draggable
+            draggable={!isResizeMode}
+            onMouseEnter={() => handleCardMouseEnter(layout.id)}
+            onMouseLeave={handleCardMouseLeave}
             onDragStart={(e) => handleDragStart(e, layout.id)}
             onDragOver={(e) => handleDragOver(e, layout.id)}
             onDragLeave={handleDragLeave}
@@ -816,6 +1170,61 @@ export default function Home() {
             onDragEnd={handleDragEnd}
           >
             <ResizeHandles />
+            {/* Pencil Icon */}
+            {showPencil && !isResizeMode && (
+              <button
+                onClick={(e) => handlePencilClick(e, layout.id)}
+                className="absolute top-4 right-4 p-2 rounded-lg bg-white shadow-md hover:bg-gray-50 transition-all z-30 card-menu-container cursor-pointer"
+                title="Edit card"
+              >
+                <svg width="16" height="16" viewBox="0 0 256 256" fill="currentColor">
+                  <path d="M227.31,73.37,182.63,28.69a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.68,147.31,64l24-24L216,84.68Z"/>
+                </svg>
+              </button>
+            )}
+            {/* Menu Dropdown */}
+            {showMenu && (
+              <div className="absolute top-12 right-4 bg-white border border-gray-200 rounded-lg shadow-lg z-40 card-menu-container min-w-[140px]">
+                <button
+                  onClick={() => handleResizeClick(layout.id)}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor">
+                    <path d="M237.66,133.66l-32,32a8,8,0,0,1-11.32-11.32L212.69,136H43.31l18.35,18.34a8,8,0,0,1-11.32,11.32l-32-32a8,8,0,0,1,0-11.32l32-32a8,8,0,0,1,11.32,11.32L43.31,120H212.69l-18.35-18.34a8,8,0,0,1,11.32-11.32l32,32A8,8,0,0,1,237.66,133.66Z"/>
+                  </svg>
+                  Resize
+                </button>
+                <button
+                  onClick={() => handleReorderClick(layout.id)}
+                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors cursor-pointer flex items-center gap-2"
+                >
+                  <svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor">
+                    <path d="M216,48V96a8,8,0,0,1-16,0V67.31l-42.34,42.35a8,8,0,0,1-11.32-11.32L188.69,56H160a8,8,0,0,1,0-16h48A8,8,0,0,1,216,48ZM98.34,146.34,56,188.69V160a8,8,0,0,0-16,0v48a8,8,0,0,0,8,8H96a8,8,0,0,0,0-16H67.31l42.35-42.34a8,8,0,0,0-11.32-11.32ZM208,152a8,8,0,0,0-8,8v28.69l-42.34-42.35a8,8,0,0,0-11.32,11.32L188.69,200H160a8,8,0,0,0,0,16h48a8,8,0,0,0,8-8V160A8,8,0,0,0,208,152ZM67.31,56H96a8,8,0,0,0,0-16H48a8,8,0,0,0-8,8V96a8,8,0,0,0,16,0V67.31l42.34,42.35a8,8,0,0,0,11.32-11.32Z"/>
+                  </svg>
+                  Reorder
+                </button>
+              </div>
+            )}
+            {/* Exit Resize Mode Button */}
+            {isResizeMode && (
+              <button
+                onClick={() => {
+                  setResizeModeCardId(null);
+                  setShowPencilIcon(null);
+                  // Clear any active resize state
+                  if (resizingCardId === layout.id) {
+                    setResizingCardId(null);
+                    setResizeStart(null);
+                    setPreviewSize(null);
+                    document.body.style.userSelect = '';
+                    document.body.style.cursor = '';
+                  }
+                }}
+                className="absolute top-4 right-4 px-3 py-1.5 bg-[#3f3b39] text-white text-xs rounded-lg hover:bg-[#4d4845] transition-all z-30 cursor-pointer"
+              >
+                Done
+              </button>
+            )}
             <p className="text-sm font-medium text-gray-500 mb-4 uppercase tracking-wide">Liability Allocation</p>
             {isClient && liabilityAllocationData.length > 0 ? (
               <div style={{ width: '100%', height: '250px' }}>
