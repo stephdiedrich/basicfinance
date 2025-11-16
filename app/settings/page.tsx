@@ -6,11 +6,11 @@ import {
   getCashFlowGroups, addCashFlowGroup, updateCashFlowGroup, deleteCashFlowGroup, reorderCashFlowGroups,
   getCashFlowCategories, addCashFlowCategory, updateCashFlowCategory, deleteCashFlowCategory, reorderCashFlowCategories,
   getPreferences, updatePreferences,
-  getAssetClasses, addAssetClass, updateAssetClass, deleteAssetClass, reorderAssetClasses, getFinancialData
+  getAssetClasses, addAssetClass, updateAssetClass, deleteAssetClass, reorderAssetClasses, getFinancialData, saveFinancialData
 } from '@/lib/storage';
-import { CashFlowLineItem, CashFlowGroup, CashFlowCategory, AssetClass, Asset } from '@/types';
+import { CashFlowLineItem, CashFlowGroup, CashFlowCategory, AssetClass, Asset, FinancialData } from '@/types';
 
-type SettingsTab = 'institutions' | 'categories' | 'preferences' | 'asset-classes';
+type SettingsTab = 'institutions' | 'categories' | 'preferences' | 'asset-classes' | 'data';
 
 export default function SettingsPage() {
   const [selectedTab, setSelectedTab] = useState<SettingsTab>('categories');
@@ -52,6 +52,12 @@ export default function SettingsPage() {
   const [editingAssetClassNameId, setEditingAssetClassNameId] = useState<string | null>(null);
   const [editingAssetClassNameValue, setEditingAssetClassNameValue] = useState('');
   const [assetClassToDelete, setAssetClassToDelete] = useState<string | null>(null);
+  
+  // Data export/import state
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importMode, setImportMode] = useState<'replace' | 'merge'>('replace');
+  const [importPreview, setImportPreview] = useState<FinancialData | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
 
   const loadPreferences = () => {
     const prefs = getPreferences();
@@ -405,6 +411,122 @@ export default function SettingsPage() {
     }).format(amount);
   };
 
+  // Data export/import functions
+  const handleExportData = () => {
+    const data = getFinancialData();
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const date = new Date().toISOString().split('T')[0];
+    link.href = url;
+    link.download = `basic-finance-backup-${date}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setImportFile(file);
+    setImportError(null);
+    setImportPreview(null);
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+        
+        // Basic validation - check if it has the structure of FinancialData
+        if (typeof parsed !== 'object' || parsed === null) {
+          setImportError('Invalid file format. Expected JSON object.');
+          return;
+        }
+        
+        // Check for required top-level properties
+        const requiredProps = ['assets', 'liabilities', 'transactions'];
+        const hasRequiredProps = requiredProps.every(prop => Array.isArray(parsed[prop]));
+        
+        if (!hasRequiredProps) {
+          setImportError('Invalid file format. Missing required data structure.');
+          return;
+        }
+        
+        setImportPreview(parsed as FinancialData);
+      } catch (error) {
+        setImportError('Failed to parse JSON file. Please check the file format.');
+        console.error('Import error:', error);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImportData = () => {
+    if (!importPreview) return;
+    
+    if (importMode === 'replace') {
+      if (!confirm('This will replace all your current data. Are you sure? This action cannot be undone.')) {
+        return;
+      }
+      // Create backup before replacing
+      const currentData = getFinancialData();
+      const backupJson = JSON.stringify(currentData, null, 2);
+      const backupBlob = new Blob([backupJson], { type: 'application/json' });
+      const backupUrl = URL.createObjectURL(backupBlob);
+      const backupLink = document.createElement('a');
+      const date = new Date().toISOString().split('T')[0];
+      backupLink.href = backupUrl;
+      backupLink.download = `basic-finance-backup-before-import-${date}.json`;
+      document.body.appendChild(backupLink);
+      backupLink.click();
+      document.body.removeChild(backupLink);
+      URL.revokeObjectURL(backupUrl);
+      
+      saveFinancialData(importPreview);
+    } else {
+      // Merge mode
+      const currentData = getFinancialData();
+      const merged: FinancialData = {
+        ...currentData,
+        assets: [...currentData.assets, ...importPreview.assets],
+        liabilities: [...currentData.liabilities, ...importPreview.liabilities],
+        transactions: [...currentData.transactions, ...importPreview.transactions],
+        assetClasses: importPreview.assetClasses || currentData.assetClasses,
+        liabilityClasses: importPreview.liabilityClasses || currentData.liabilityClasses,
+        budgets: [...currentData.budgets, ...(importPreview.budgets || [])],
+        preferences: { ...currentData.preferences, ...importPreview.preferences },
+      };
+      saveFinancialData(merged);
+    }
+    
+    // Reset import state
+    setImportFile(null);
+    setImportPreview(null);
+    setImportError(null);
+    setImportMode('replace');
+    
+    // Reload data
+    loadData();
+    
+    alert('Data imported successfully!');
+  };
+
+  const getDataStats = () => {
+    const data = getFinancialData();
+    return {
+      assets: data.assets?.length || 0,
+      liabilities: data.liabilities?.length || 0,
+      transactions: data.transactions?.length || 0,
+      assetClasses: data.assetClasses?.length || 0,
+      liabilityClasses: data.liabilityClasses?.length || 0,
+      budgets: data.budgets?.length || 0,
+    };
+  };
+
   return (
     <div className="w-full pr-8 lg:pr-16 py-10" style={{ paddingLeft: 'calc(280px + 2rem)' }}>
       <div className="mb-10">
@@ -454,6 +576,16 @@ export default function SettingsPage() {
             }`}
           >
             Preferences
+          </button>
+          <button
+            onClick={() => setSelectedTab('data')}
+            className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+              selectedTab === 'data'
+                ? 'bg-white text-black shadow-soft'
+                : 'text-gray-600 hover:text-black'
+            }`}
+          >
+            Data
           </button>
         </div>
       </div>
@@ -1349,6 +1481,132 @@ export default function SettingsPage() {
                   <span className="text-xs text-gray-500 font-light">Display notes from line items in the cash flow statement</span>
                 </div>
               </label>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Data Tab */}
+      {selectedTab === 'data' && (
+        <div className="bg-white rounded-2xl shadow-card p-8">
+          <h2 className="text-2xl font-medium mb-2 text-black">Data Management</h2>
+          <p className="text-gray-500 text-[15px] font-light mb-8">Export your data for backup or import data from a previous backup</p>
+
+          {/* Export Section */}
+          <div className="mb-8 pb-8 border-b border-gray-200">
+            <h3 className="text-lg font-medium mb-4 text-black">Export Data</h3>
+            <p className="text-sm text-gray-600 font-light mb-4">
+              Download all your financial data as a JSON file. This includes assets, liabilities, transactions, budgets, and all settings.
+            </p>
+            
+            {/* Data Stats */}
+            <div className="bg-gray-50 rounded-xl p-4 mb-4">
+              <p className="text-sm font-medium text-gray-700 mb-2">Current Data Summary:</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-gray-600">
+                <div>{getDataStats().assets} assets</div>
+                <div>{getDataStats().liabilities} liabilities</div>
+                <div>{getDataStats().transactions} transactions</div>
+                <div>{getDataStats().assetClasses} asset classes</div>
+                <div>{getDataStats().liabilityClasses} liability classes</div>
+                <div>{getDataStats().budgets} budgets</div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleExportData}
+              className="px-5 py-3 bg-[#3f3b39] text-white rounded-xl hover:bg-[#4d4845] transition-all font-medium shadow-soft cursor-pointer"
+            >
+              Export Data
+            </button>
+          </div>
+
+          {/* Import Section */}
+          <div>
+            <h3 className="text-lg font-medium mb-4 text-black">Import Data</h3>
+            <p className="text-sm text-gray-600 font-light mb-4">
+              Import data from a previously exported JSON backup file.
+            </p>
+
+            <div className="space-y-4">
+              {/* File Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Backup File</label>
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleFileSelect}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all cursor-pointer"
+                />
+                {importFile && (
+                  <p className="text-sm text-gray-500 mt-2 font-light">Selected: {importFile.name}</p>
+                )}
+              </div>
+
+              {/* Error Message */}
+              {importError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                  <p className="text-sm text-red-700 font-medium">{importError}</p>
+                </div>
+              )}
+
+              {/* Import Preview */}
+              {importPreview && !importError && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                  <p className="text-sm font-medium text-green-700 mb-2">File validated successfully!</p>
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <div>Assets: {importPreview.assets?.length || 0}</div>
+                    <div>Liabilities: {importPreview.liabilities?.length || 0}</div>
+                    <div>Transactions: {importPreview.transactions?.length || 0}</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Import Mode Selection */}
+              {importPreview && !importError && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Import Mode</label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="importMode"
+                        value="replace"
+                        checked={importMode === 'replace'}
+                        onChange={() => setImportMode('replace')}
+                        className="w-4 h-4 text-[#3f3b39] border-gray-300 focus:ring-[#3f3b39] cursor-pointer"
+                      />
+                      <div className="flex-1">
+                        <span className="text-gray-700 font-medium block">Replace All Data</span>
+                        <span className="text-xs text-gray-500 font-light">Replace your current data with the imported data. A backup will be created automatically.</span>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-xl hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="importMode"
+                        value="merge"
+                        checked={importMode === 'merge'}
+                        onChange={() => setImportMode('merge')}
+                        className="w-4 h-4 text-[#3f3b39] border-gray-300 focus:ring-[#3f3b39] cursor-pointer"
+                      />
+                      <div className="flex-1">
+                        <span className="text-gray-700 font-medium block">Merge Data</span>
+                        <span className="text-xs text-gray-500 font-light">Add imported items to your existing data. Existing items will be preserved.</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Import Button */}
+              {importPreview && !importError && (
+                <button
+                  onClick={handleImportData}
+                  className="w-full px-5 py-3 bg-[#3f3b39] text-white rounded-xl hover:bg-[#4d4845] transition-all font-medium shadow-soft cursor-pointer"
+                >
+                  {importMode === 'replace' ? 'Replace All Data' : 'Merge Data'}
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getFinancialData, addLiability, updateLiability, deleteLiability, reorderLiabilities, getLiabilityClasses, addLiabilityClass, updateLiabilityClass, getLiabilityViews, addLiabilityView, updateLiabilityView, deleteLiabilityView, reorderLiabilityViews, reorderLiabilityClasses } from '@/lib/storage';
 import { Liability, LiabilityType, LiabilityClass, LiabilityView } from '@/types';
+import { validateName, validateAmount, validateInterestRate } from '@/lib/validation';
 
 type CategoryFilter = 'all' | string;
 
@@ -33,6 +34,12 @@ export default function LiabilitiesPage() {
     amount: '',
     interestRate: '',
     notes: '',
+  });
+  const [formErrors, setFormErrors] = useState({
+    name: '',
+    type: '',
+    amount: '',
+    interestRate: '',
   });
   const [viewFormData, setViewFormData] = useState({
     name: '',
@@ -85,8 +92,46 @@ export default function LiabilitiesPage() {
         return [];
       })();
 
+  const validateForm = (): boolean => {
+    const errors = {
+      name: '',
+      type: '',
+      amount: '',
+      interestRate: '',
+    };
+    
+    const nameValidation = validateName(formData.name);
+    if (!nameValidation.isValid) {
+      errors.name = nameValidation.error || '';
+    }
+    
+    if (!formData.type || formData.type.trim() === '') {
+      errors.type = 'Category is required';
+    }
+    
+    const amountValidation = validateAmount(formData.amount);
+    if (!amountValidation.isValid) {
+      errors.amount = amountValidation.error || '';
+    }
+    
+    if (formData.interestRate) {
+      const interestValidation = validateInterestRate(formData.interestRate);
+      if (!interestValidation.isValid) {
+        errors.interestRate = interestValidation.error || '';
+      }
+    }
+    
+    setFormErrors(errors);
+    return !errors.name && !errors.type && !errors.amount && !errors.interestRate;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     if (editingLiability) {
       updateLiability(editingLiability.id, {
         name: formData.name,
@@ -216,6 +261,7 @@ export default function LiabilitiesPage() {
 
   const resetForm = () => {
     setFormData({ name: '', type: liabilityClasses[0]?.id || '', amount: '', interestRate: '', notes: '' });
+    setFormErrors({ name: '', type: '', amount: '', interestRate: '' });
     setIsFormOpen(false);
     setEditingLiability(null);
   };
@@ -691,17 +737,35 @@ export default function LiabilitiesPage() {
                 type="text"
                 required
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all"
+                onChange={(e) => {
+                  setFormData({ ...formData, name: e.target.value });
+                  if (formErrors.name) {
+                    const validation = validateName(e.target.value);
+                    setFormErrors({ ...formErrors, name: validation.error || '' });
+                  }
+                }}
+                  className={`w-full px-4 py-3 border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all ${
+                    formErrors.name ? 'border-red-300' : 'border-gray-200'
+                  }`}
               />
+              {formErrors.name && (
+                <p className="text-sm text-red-600 mt-1">{formErrors.name}</p>
+              )}
             </div>
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
                 <div className="flex gap-2">
                   <select
                     value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all"
+                    onChange={(e) => {
+                      setFormData({ ...formData, type: e.target.value });
+                      if (formErrors.type) {
+                        setFormErrors({ ...formErrors, type: e.target.value ? '' : 'Category is required' });
+                      }
+                    }}
+                    className={`flex-1 px-4 py-3 border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all ${
+                      formErrors.type ? 'border-red-300' : 'border-gray-200'
+                    }`}
                     required
                   >
                     <option value="">Select category...</option>
@@ -718,6 +782,9 @@ export default function LiabilitiesPage() {
                     +
                   </button>
                 </div>
+                {formErrors.type && (
+                  <p className="text-sm text-red-600 mt-1">{formErrors.type}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Amount ($)</label>
@@ -726,9 +793,20 @@ export default function LiabilitiesPage() {
                 step="0.01"
                 required
                 value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all"
+                onChange={(e) => {
+                  setFormData({ ...formData, amount: e.target.value });
+                  if (formErrors.amount) {
+                    const validation = validateAmount(e.target.value);
+                    setFormErrors({ ...formErrors, amount: validation.error || '' });
+                  }
+                }}
+                  className={`w-full px-4 py-3 border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                    formErrors.amount ? 'border-red-300' : 'border-gray-200'
+                  }`}
               />
+              {formErrors.amount && (
+                <p className="text-sm text-red-600 mt-1">{formErrors.amount}</p>
+              )}
             </div>
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Interest Rate (%) (optional)</label>
@@ -736,9 +814,20 @@ export default function LiabilitiesPage() {
                 type="number"
                 step="0.01"
                 value={formData.interestRate}
-                onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all"
+                onChange={(e) => {
+                  setFormData({ ...formData, interestRate: e.target.value });
+                  if (formErrors.interestRate) {
+                    const validation = validateInterestRate(e.target.value);
+                    setFormErrors({ ...formErrors, interestRate: validation.error || '' });
+                  }
+                }}
+                  className={`w-full px-4 py-3 border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                    formErrors.interestRate ? 'border-red-300' : 'border-gray-200'
+                  }`}
               />
+              {formErrors.interestRate && (
+                <p className="text-sm text-red-600 mt-1">{formErrors.interestRate}</p>
+              )}
             </div>
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Notes (optional)</label>

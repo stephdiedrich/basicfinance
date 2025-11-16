@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect, useRef } from 'react';
 import { config } from '@/lib/config';
+import { getFinancialData } from '@/lib/storage';
+import { Asset, Liability, Transaction } from '@/types';
 
 const navItems = [
   { href: '/', label: 'Home', icon: (
@@ -35,7 +37,84 @@ const navItems = [
 
 export default function Navigation() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{
+    assets: Asset[];
+    liabilities: Liability[];
+    transactions: Transaction[];
+  }>({ assets: [], liabilities: [], transactions: [] });
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  // Search functionality
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setSearchResults({ assets: [], liabilities: [], transactions: [] });
+      setShowSearchResults(false);
+      return;
+    }
+
+    const data = getFinancialData();
+    const query = searchQuery.toLowerCase().trim();
+    const results = {
+      assets: (data.assets || []).filter((asset: Asset) =>
+        asset.name.toLowerCase().includes(query) ||
+        asset.institution?.toLowerCase().includes(query) ||
+        asset.notes?.toLowerCase().includes(query)
+      ).slice(0, 5),
+      liabilities: (data.liabilities || []).filter((liability: Liability) =>
+        liability.name.toLowerCase().includes(query) ||
+        liability.notes?.toLowerCase().includes(query)
+      ).slice(0, 5),
+      transactions: (data.transactions || []).filter((transaction: Transaction) =>
+        transaction.description?.toLowerCase().includes(query) ||
+        transaction.merchant?.toLowerCase().includes(query) ||
+        transaction.category?.toLowerCase().includes(query)
+      ).slice(0, 5),
+    };
+
+    setSearchResults(results);
+    setShowSearchResults(
+      results.assets.length > 0 ||
+      results.liabilities.length > 0 ||
+      results.transactions.length > 0
+    );
+  }, [searchQuery]);
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSearchResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSearchResultClick = (type: 'asset' | 'liability' | 'transaction', id: string) => {
+    setSearchQuery('');
+    setShowSearchResults(false);
+    if (type === 'asset') {
+      router.push('/assets');
+    } else if (type === 'liability') {
+      router.push('/liabilities');
+    } else {
+      router.push('/transactions');
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  };
 
   return (
     <nav className="fixed left-0 top-0 h-full bg-white shadow-card transition-all duration-300 z-40" style={{ width: isExpanded ? '280px' : '80px' }}>
@@ -70,6 +149,112 @@ export default function Navigation() {
             </svg>
           </button>
         </div>
+
+        {/* Search Bar */}
+        {isExpanded && (
+          <div className="px-3 py-3 border-b border-gray-100" ref={searchRef}>
+            <div className="relative">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => {
+                    if (searchQuery.trim() !== '') {
+                      setShowSearchResults(true);
+                    }
+                  }}
+                  className="w-full px-4 py-2.5 pl-10 pr-4 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all text-sm"
+                />
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 256 256"
+                  fill="currentColor"
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                >
+                  <path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"></path>
+                </svg>
+                {searchQuery && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setShowSearchResults(false);
+                    }}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10 9.293l4.146-4.147a.5.5 0 0 1 .708.708L10.707 10l4.147 4.146a.5.5 0 0 1-.708.708L10 10.707l-4.146 4.147a.5.5 0 0 1-.708-.708L9.293 10 5.146 5.854a.5.5 0 1 1 .708-.708L10 9.293z" fill="currentColor"/>
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {/* Search Results Dropdown */}
+              {showSearchResults && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-96 overflow-y-auto">
+                  {searchResults.assets.length === 0 &&
+                   searchResults.liabilities.length === 0 &&
+                   searchResults.transactions.length === 0 ? (
+                    <div className="p-4 text-sm text-gray-500 text-center">No results found</div>
+                  ) : (
+                    <>
+                      {searchResults.assets.length > 0 && (
+                        <div className="p-2">
+                          <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase">Assets</div>
+                          {searchResults.assets.map((asset) => (
+                            <button
+                              key={asset.id}
+                              onClick={() => handleSearchResultClick('asset', asset.id)}
+                              className="w-full px-3 py-2 text-left rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                            >
+                              <div className="font-medium text-black">{asset.name}</div>
+                              <div className="text-xs text-gray-500">{formatCurrency(asset.value || 0)}</div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {searchResults.liabilities.length > 0 && (
+                        <div className="p-2">
+                          <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase">Liabilities</div>
+                          {searchResults.liabilities.map((liability) => (
+                            <button
+                              key={liability.id}
+                              onClick={() => handleSearchResultClick('liability', liability.id)}
+                              className="w-full px-3 py-2 text-left rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                            >
+                              <div className="font-medium text-black">{liability.name}</div>
+                              <div className="text-xs text-gray-500">{formatCurrency(liability.amount || 0)}</div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {searchResults.transactions.length > 0 && (
+                        <div className="p-2">
+                          <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase">Transactions</div>
+                          {searchResults.transactions.map((transaction) => (
+                            <button
+                              key={transaction.id}
+                              onClick={() => handleSearchResultClick('transaction', transaction.id)}
+                              className="w-full px-3 py-2 text-left rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                            >
+                              <div className="font-medium text-black">{transaction.description || transaction.merchant}</div>
+                              <div className="text-xs text-gray-500">
+                                {formatCurrency(transaction.amount || 0)} • {transaction.date ? new Date(transaction.date).toLocaleDateString() : ''}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         
         {/* Navigation Items */}
         <div className="flex-1 py-4 px-3">

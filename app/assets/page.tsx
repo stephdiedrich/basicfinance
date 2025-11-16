@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getFinancialData, addAsset, updateAsset, deleteAsset, reorderAssets, getAssetClasses, addAssetClass, updateAssetClass, deleteAssetClass, getAssetViews, addAssetView, updateAssetView, deleteAssetView, reorderAssetViews, reorderAssetClasses } from '@/lib/storage';
 import { Asset, AssetType, AssetClass, AssetView } from '@/types';
+import { validateName, validateAmount } from '@/lib/validation';
 
 type CategoryFilter = 'all' | string;
 
@@ -37,6 +38,11 @@ export default function AssetsPage() {
     value: '',
     institution: '',
     notes: '',
+  });
+  const [formErrors, setFormErrors] = useState({
+    name: '',
+    type: '',
+    value: '',
   });
   const [viewFormData, setViewFormData] = useState({
     name: '',
@@ -107,8 +113,38 @@ export default function AssetsPage() {
         return [];
       })();
 
+  const validateForm = (): boolean => {
+    const errors = {
+      name: '',
+      type: '',
+      value: '',
+    };
+    
+    const nameValidation = validateName(formData.name);
+    if (!nameValidation.isValid) {
+      errors.name = nameValidation.error || '';
+    }
+    
+    if (!formData.type || formData.type.trim() === '') {
+      errors.type = 'Category is required';
+    }
+    
+    const valueValidation = validateAmount(formData.value);
+    if (!valueValidation.isValid) {
+      errors.value = valueValidation.error || '';
+    }
+    
+    setFormErrors(errors);
+    return !errors.name && !errors.type && !errors.value;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     if (editingAsset) {
       updateAsset(editingAsset.id, {
         name: formData.name,
@@ -260,6 +296,7 @@ export default function AssetsPage() {
 
   const resetForm = () => {
     setFormData({ name: '', type: assetClasses[0]?.id || '', value: '', institution: '', notes: '' });
+    setFormErrors({ name: '', type: '', value: '' });
     setIsFormOpen(false);
     setEditingAsset(null);
   };
@@ -755,17 +792,35 @@ export default function AssetsPage() {
                   type="text"
                   required
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all"
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (formErrors.name) {
+                      const validation = validateName(e.target.value);
+                      setFormErrors({ ...formErrors, name: validation.error || '' });
+                    }
+                  }}
+                  className={`w-full px-4 py-3 border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all ${
+                    formErrors.name ? 'border-red-300' : 'border-gray-200'
+                  }`}
                 />
+                {formErrors.name && (
+                  <p className="text-sm text-red-600 mt-1">{formErrors.name}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
                 <div className="flex gap-2">
                   <select
                     value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all"
+                    onChange={(e) => {
+                      setFormData({ ...formData, type: e.target.value });
+                      if (formErrors.type) {
+                        setFormErrors({ ...formErrors, type: e.target.value ? '' : 'Category is required' });
+                      }
+                    }}
+                    className={`flex-1 px-4 py-3 border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all ${
+                      formErrors.type ? 'border-red-300' : 'border-gray-200'
+                    }`}
                     required
                   >
                     <option value="">Select category...</option>
@@ -782,6 +837,9 @@ export default function AssetsPage() {
                     +
                   </button>
                 </div>
+                {formErrors.type && (
+                  <p className="text-sm text-red-600 mt-1">{formErrors.type}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Value ($)</label>
@@ -790,9 +848,20 @@ export default function AssetsPage() {
                   step="0.01"
                   required
                   value={formData.value}
-                  onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all"
+                  onChange={(e) => {
+                    setFormData({ ...formData, value: e.target.value });
+                    if (formErrors.value) {
+                      const validation = validateAmount(e.target.value);
+                      setFormErrors({ ...formErrors, value: validation.error || '' });
+                    }
+                  }}
+                  className={`w-full px-4 py-3 border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                    formErrors.value ? 'border-red-300' : 'border-gray-200'
+                  }`}
                 />
+                {formErrors.value && (
+                  <p className="text-sm text-red-600 mt-1">{formErrors.value}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Institution</label>

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { getFinancialData, addTransaction, updateTransaction, deleteTransaction, reorderTransactions, getCashFlowCategories } from '@/lib/storage';
 import { Transaction, TransactionType, CashFlowCategory } from '@/types';
+import { validateAmount, validateDate, validateRequired } from '@/lib/validation';
 
 type TimeFrame = 'last-30-days' | 'this-month' | 'last-month' | 'this-quarter' | 'custom';
 
@@ -39,6 +40,12 @@ export default function TransactionsPage() {
     merchant: '',
     date: new Date().toISOString().split('T')[0],
     reviewed: false,
+  });
+  const [formErrors, setFormErrors] = useState({
+    amount: '',
+    date: '',
+    description: '',
+    category: '',
   });
 
   useEffect(() => {
@@ -195,8 +202,45 @@ export default function TransactionsPage() {
     setFilteredTransactions(filtered);
   };
 
+  const validateForm = (): boolean => {
+    const errors = {
+      amount: '',
+      date: '',
+      description: '',
+      category: '',
+    };
+    
+    const amountValidation = validateAmount(formData.amount);
+    if (!amountValidation.isValid) {
+      errors.amount = amountValidation.error || '';
+    }
+    
+    const dateValidation = validateDate(formData.date, false);
+    if (!dateValidation.isValid) {
+      errors.date = dateValidation.error || '';
+    }
+    
+    const descriptionValidation = validateRequired(formData.description);
+    if (!descriptionValidation.isValid) {
+      errors.description = descriptionValidation.error || '';
+    }
+    
+    const categoryValidation = validateRequired(formData.category);
+    if (!categoryValidation.isValid) {
+      errors.category = categoryValidation.error || '';
+    }
+    
+    setFormErrors(errors);
+    return !errors.amount && !errors.date && !errors.description && !errors.category;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     const transactionData = {
         type: formData.type,
         category: formData.category,
@@ -319,6 +363,7 @@ export default function TransactionsPage() {
       date: new Date().toISOString().split('T')[0],
       reviewed: false,
     });
+    setFormErrors({ amount: '', date: '', description: '', category: '' });
     setIsFormOpen(false);
     setEditingTransaction(null);
   };
@@ -766,20 +811,42 @@ export default function TransactionsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                <CategorySearchDropdown
-                value={formData.category}
-                  onChange={(category) => setFormData({ ...formData, category })}
-                  categories={categories}
-                />
+                <div className={formErrors.category ? 'border border-red-300 rounded-xl' : ''}>
+                  <CategorySearchDropdown
+                  value={formData.category}
+                    onChange={(category) => {
+                      setFormData({ ...formData, category });
+                      if (formErrors.category) {
+                        const validation = validateRequired(category);
+                        setFormErrors({ ...formErrors, category: validation.error || '' });
+                      }
+                    }}
+                    categories={categories}
+                  />
+                </div>
+                {formErrors.category && (
+                  <p className="text-sm text-red-600 mt-1">{formErrors.category}</p>
+                )}
             </div>
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                 <textarea
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all"
+                onChange={(e) => {
+                  setFormData({ ...formData, description: e.target.value });
+                  if (formErrors.description) {
+                    const validation = validateRequired(e.target.value);
+                    setFormErrors({ ...formErrors, description: validation.error || '' });
+                  }
+                }}
+                  className={`w-full px-4 py-3 border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all ${
+                    formErrors.description ? 'border-red-300' : 'border-gray-200'
+                  }`}
                   rows={2}
               />
+              {formErrors.description && (
+                <p className="text-sm text-red-600 mt-1">{formErrors.description}</p>
+              )}
             </div>
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Amount ($)</label>
@@ -788,9 +855,20 @@ export default function TransactionsPage() {
                 step="0.01"
                 required
                 value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                onChange={(e) => {
+                  setFormData({ ...formData, amount: e.target.value });
+                  if (formErrors.amount) {
+                    const validation = validateAmount(e.target.value);
+                    setFormErrors({ ...formErrors, amount: validation.error || '' });
+                  }
+                }}
+                  className={`w-full px-4 py-3 border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                    formErrors.amount ? 'border-red-300' : 'border-gray-200'
+                  }`}
               />
+              {formErrors.amount && (
+                <p className="text-sm text-red-600 mt-1">{formErrors.amount}</p>
+              )}
             </div>
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
@@ -798,9 +876,20 @@ export default function TransactionsPage() {
                 type="date"
                 required
                 value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all"
+                onChange={(e) => {
+                  setFormData({ ...formData, date: e.target.value });
+                  if (formErrors.date) {
+                    const validation = validateDate(e.target.value, false);
+                    setFormErrors({ ...formErrors, date: validation.error || '' });
+                  }
+                }}
+                  className={`w-full px-4 py-3 border rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#3f3b39] focus:border-transparent transition-all ${
+                    formErrors.date ? 'border-red-300' : 'border-gray-200'
+                  }`}
               />
+              {formErrors.date && (
+                <p className="text-sm text-red-600 mt-1">{formErrors.date}</p>
+              )}
             </div>
               <div className="flex items-center">
                 <input
