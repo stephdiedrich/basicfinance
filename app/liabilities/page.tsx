@@ -458,10 +458,10 @@ export default function LiabilitiesPage() {
   const categories: CategoryFilter[] = ['all', ...filteredViews.map(v => v.id)];
 
   return (
-    <div className="w-full pr-8 lg:pr-16 py-10" style={{ paddingLeft: 'calc(280px + 2rem)' }}>
-      <div className="mb-10">
-        <h1 className="text-4xl font-medium mb-2 text-black tracking-tight">Liabilities</h1>
-        <p className="text-gray-500 text-[15px] font-light">Manage your debts and loans</p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 py-6 md:py-10">
+      <div className="mb-6 md:mb-10">
+        <h1 className="text-3xl md:text-4xl font-medium mb-2 text-black tracking-tight">Liabilities</h1>
+        <p className="text-gray-500 text-sm md:text-[15px] font-light">Manage your debts and loans</p>
       </div>
 
       {/* Category Tabs */}
@@ -726,7 +726,7 @@ export default function LiabilitiesPage() {
       {/* Liability Form Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
+          <div className="bg-white rounded-2xl p-4 md:p-8 w-full max-w-md mx-4 md:mx-auto shadow-modal">
             <h2 className="text-2xl font-medium mb-6 text-black">
             {editingLiability ? 'Edit Liability' : 'Add New Liability'}
           </h2>
@@ -876,7 +876,7 @@ export default function LiabilitiesPage() {
       {/* View Creator Modal */}
       {isViewFormOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
+          <div className="bg-white rounded-2xl p-4 md:p-8 w-full max-w-md mx-4 md:mx-auto shadow-modal">
             <h2 className="text-2xl font-medium mb-6 text-black">Create Custom View</h2>
             <form onSubmit={handleViewSubmit} className="space-y-5">
               <div>
@@ -914,7 +914,7 @@ export default function LiabilitiesPage() {
       {/* New Category Form Modal */}
       {isNewClassFormOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
+          <div className="bg-white rounded-2xl p-4 md:p-8 w-full max-w-md mx-4 md:mx-auto shadow-modal">
             <h2 className="text-2xl font-medium mb-6 text-black">Add New Category</h2>
             <form onSubmit={handleNewClassSubmit} className="space-y-5">
               <div>
@@ -951,7 +951,7 @@ export default function LiabilitiesPage() {
       {/* Delete View Confirmation Modal */}
       {viewToDelete && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
+          <div className="bg-white rounded-2xl p-4 md:p-8 w-full max-w-md mx-4 md:mx-auto shadow-modal">
             <h2 className="text-2xl font-medium mb-4 text-black">Delete View</h2>
             <p className="text-gray-600 mb-6 font-light">
               Are you sure you want to delete this view? This will not affect your liabilities - they will remain in the &quot;All&quot; view.
@@ -984,7 +984,7 @@ export default function LiabilitiesPage() {
       {/* Edit View Form Modal */}
       {isEditViewFormOpen && editingView && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
+          <div className="bg-white rounded-2xl p-4 md:p-8 w-full max-w-md mx-4 md:mx-auto shadow-modal">
             <h2 className="text-2xl font-medium mb-6 text-black">Edit View</h2>
             <form onSubmit={handleEditViewSubmit} className="space-y-5">
               <div>
@@ -1047,7 +1047,7 @@ export default function LiabilitiesPage() {
       {/* Edit Category Form Modal */}
       {isEditClassFormOpen && editingLiabilityClass && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
+          <div className="bg-white rounded-2xl p-4 md:p-8 w-full max-w-md mx-4 md:mx-auto shadow-modal">
             <h2 className="text-2xl font-medium mb-6 text-black">Edit Category</h2>
             <form onSubmit={handleEditClassSubmit} className="space-y-5">
               <div>

@@ -361,10 +361,10 @@ export default function CashFlowPage() {
   };
 
   return (
-    <div className="w-full pr-8 lg:pr-16 py-10" style={{ paddingLeft: 'calc(280px + 2rem)' }}>
-      <div className="mb-10">
-        <h1 className="text-4xl font-medium mb-2 text-black tracking-tight">Cash Flow</h1>
-        <p className="text-gray-500 text-[15px] font-light">Monthly income, expenses, and net income overview</p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 py-6 md:py-10">
+      <div className="mb-6 md:mb-10">
+        <h1 className="text-3xl md:text-4xl font-medium mb-2 text-black tracking-tight">Cash Flow</h1>
+        <p className="text-gray-500 text-sm md:text-[15px] font-light">Monthly income, expenses, and net income overview</p>
         </div>
 
       {/* Period Navigation */}
