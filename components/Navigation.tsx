@@ -35,11 +35,35 @@ const navItems = [
   )},
 ];
 
-export default function Navigation() {
+interface NavigationProps {
+  isMobileMenuOpen?: boolean;
+  onMobileMenuClose?: () => void;
+}
+
+export default function Navigation({ isMobileMenuOpen = false, onMobileMenuClose }: NavigationProps = {} as NavigationProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isExpanded, setIsExpanded] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Load sidebar expansion state from localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebar-expanded');
+      if (saved !== null) {
+        setIsExpanded(saved === 'true');
+      }
+    }
+  }, []);
+  
+  // Save sidebar expansion state to localStorage
+  const handleToggleExpanded = () => {
+    const newState = !isExpanded;
+    setIsExpanded(newState);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebar-expanded', String(newState));
+    }
+  };
   const [searchResults, setSearchResults] = useState<{
     assets: Asset[];
     liabilities: Liability[];
@@ -47,6 +71,7 @@ export default function Navigation() {
   }>({ assets: [], liabilities: [], transactions: [] });
   const [showSearchResults, setShowSearchResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const navRef = useRef<HTMLNavElement>(null);
 
   // Search functionality
   useEffect(() => {
@@ -116,8 +141,61 @@ export default function Navigation() {
     }).format(amount);
   };
 
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(event.target as Node) && isMobileMenuOpen) {
+        onMobileMenuClose?.();
+      }
+    };
+
+    if (isMobileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      // Prevent body scroll when mobile menu is open
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.body.style.overflow = '';
+    };
+  }, [isMobileMenuOpen, onMobileMenuClose]);
+
+  // Close mobile menu when navigating
+  const handleLinkClick = () => {
+    if (window.innerWidth < 768) { // md breakpoint
+      onMobileMenuClose?.();
+    }
+  };
+
+  // Update CSS variable for sidebar width to sync with content padding
+  // This runs both on initial load and when toggled
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const root = document.documentElement;
+      root.style.setProperty('--sidebar-width', isExpanded ? '280px' : '80px');
+    }
+  }, [isExpanded]);
+
   return (
-    <nav className="fixed left-0 top-0 h-full bg-white shadow-card transition-all duration-300 z-40" style={{ width: isExpanded ? '280px' : '80px' }}>
+    <>
+      {/* Mobile backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden"
+          onClick={onMobileMenuClose}
+        />
+      )}
+      
+      <nav 
+        ref={navRef}
+        className={`fixed left-0 top-0 h-full bg-white shadow-card transition-all duration-300 z-50 md:z-40 ${
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+        style={{ width: isExpanded ? '280px' : '80px' }}
+      >
       <div className="flex flex-col h-full">
         {/* Header with Wordmark and Toggle */}
         <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
@@ -133,7 +211,7 @@ export default function Navigation() {
             </div>
           )}
           <button
-            onClick={() => setIsExpanded(!isExpanded)}
+            onClick={handleToggleExpanded}
             className="p-2 rounded-lg hover:bg-gray-50 transition-all flex items-center justify-center group ml-auto cursor-pointer"
             aria-label={isExpanded ? 'Collapse menu' : 'Expand menu'}
           >
@@ -264,7 +342,8 @@ export default function Navigation() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group cursor-pointer ${
+                onClick={handleLinkClick}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group cursor-pointer min-h-[44px] ${
                   isActive
                     ? 'bg-[#3f3b39] text-white shadow-soft'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-black'
@@ -292,7 +371,8 @@ export default function Navigation() {
         <div className="px-3 pb-4 border-t border-gray-100 pt-4">
           <Link
             href="/settings"
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group cursor-pointer ${
+            onClick={handleLinkClick}
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group cursor-pointer min-h-[44px] ${
               pathname === '/settings'
                 ? 'bg-[#3f3b39] text-white shadow-soft'
                 : 'text-gray-600 hover:bg-gray-50 hover:text-black'
@@ -317,5 +397,6 @@ export default function Navigation() {
         </div>
       </div>
     </nav>
+    </>
   );
 }

@@ -1276,10 +1276,10 @@ export default function Home() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 py-10" style={{ paddingLeft: 'calc(280px + 1.5rem)' }}>
-      <div className="mb-10">
-        <h1 className="text-4xl font-medium mb-2 text-black tracking-tight">Overview</h1>
-        <p className="text-gray-500 text-[15px] font-light">Your financial summary at a glance</p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 py-6 md:py-10">
+      <div className="mb-6 md:mb-10">
+        <h1 className="text-3xl md:text-4xl font-medium mb-2 text-black tracking-tight">Overview</h1>
+        <p className="text-gray-500 text-sm md:text-[15px] font-light">Your financial summary at a glance</p>
         </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">

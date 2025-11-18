@@ -420,10 +420,10 @@ export default function TransactionsPage() {
   const activeFiltersCount = Object.values(filters).filter(v => v !== '').length;
 
   return (
-    <div className="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 py-10" style={{ paddingLeft: 'calc(280px + 1.5rem)' }}>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 py-6 md:py-10">
       <div className="mb-6">
-        <h1 className="text-4xl font-medium mb-2 text-black tracking-tight">Transactions</h1>
-        <p className="text-gray-500 text-[15px] font-light">Review and categorize your transactions</p>
+        <h1 className="text-3xl md:text-4xl font-medium mb-2 text-black tracking-tight">Transactions</h1>
+        <p className="text-gray-500 text-sm md:text-[15px] font-light">Review and categorize your transactions</p>
       </div>
 
       {/* Date Range and Filter Controls */}
@@ -784,7 +784,7 @@ export default function TransactionsPage() {
       {/* Edit/Add Transaction Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 shadow-card max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl p-4 md:p-8 shadow-card max-w-2xl w-full mx-4 md:mx-auto max-h-[90vh] overflow-y-auto">
             <h2 className="text-2xl font-medium mb-6 text-black">
             {editingTransaction ? 'Edit Transaction' : 'Add New Transaction'}
           </h2>

@@ -528,15 +528,15 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="w-full pr-8 lg:pr-16 py-10" style={{ paddingLeft: 'calc(280px + 2rem)' }}>
-      <div className="mb-10">
-        <h1 className="text-4xl font-medium mb-2 text-black tracking-tight">Settings</h1>
-        <p className="text-gray-500 text-[15px] font-light">Manage your app preferences and configurations</p>
+    <div className="w-full px-4 md:px-0 md:pr-8 lg:pr-16 py-6 md:py-10">
+      <div className="mb-6 md:mb-10">
+        <h1 className="text-3xl md:text-4xl font-medium mb-2 text-black tracking-tight">Settings</h1>
+        <p className="text-gray-500 text-sm md:text-[15px] font-light">Manage your app preferences and configurations</p>
       </div>
 
       {/* Tab Navigation */}
       <div className="mb-8">
-        <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl">
+        <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-xl overflow-x-auto">
           <button
             onClick={() => setSelectedTab('institutions')}
             className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
@@ -980,7 +980,7 @@ export default function SettingsPage() {
       {/* Line Item Form Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
+          <div className="bg-white rounded-2xl p-4 md:p-8 w-full max-w-md mx-4 md:mx-auto shadow-modal">
             <h2 className="text-2xl font-medium mb-6 text-black">
               {editingItem ? 'Edit Line Item' : 'Add Line Item'}
             </h2>
@@ -1094,7 +1094,7 @@ export default function SettingsPage() {
       {/* Group Form Modal */}
       {isGroupFormOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
+          <div className="bg-white rounded-2xl p-4 md:p-8 w-full max-w-md mx-4 md:mx-auto shadow-modal">
             <h2 className="text-2xl font-medium mb-6 text-black">
               {editingGroup ? 'Edit Group' : 'Add Group'}
             </h2>
@@ -1138,7 +1138,7 @@ export default function SettingsPage() {
       {/* Category Form Modal */}
       {isCategoryFormOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
+          <div className="bg-white rounded-2xl p-4 md:p-8 w-full max-w-md mx-4 md:mx-auto shadow-modal">
             <h2 className="text-2xl font-medium mb-6 text-black">
               {editingCategory ? 'Edit Category' : 'Add Category'}
             </h2>
@@ -1615,7 +1615,7 @@ export default function SettingsPage() {
       {/* Asset Class Form Modal */}
       {isAssetClassFormOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
+          <div className="bg-white rounded-2xl p-4 md:p-8 w-full max-w-md mx-4 md:mx-auto shadow-modal">
             <h2 className="text-2xl font-medium mb-6 text-black">
               {editingAssetClass ? 'Edit Asset Class' : 'Add Asset Class'}
             </h2>
@@ -1693,7 +1693,7 @@ export default function SettingsPage() {
       {/* Delete Asset Class Confirmation Modal */}
       {assetClassToDelete && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 w-full max-w-md shadow-modal">
+          <div className="bg-white rounded-2xl p-4 md:p-8 w-full max-w-md mx-4 md:mx-auto shadow-modal">
             <h2 className="text-2xl font-medium mb-4 text-black">Cannot Delete Asset Class</h2>
             <p className="text-gray-600 mb-6 font-light">
               This asset class is being used by {getAssetsForClass(assetClassToDelete).length} asset(s). 
